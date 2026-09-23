@@ -1,0 +1,23 @@
+@import 'config/tailwind.config.css';
+@import 'config/typography.css';
+@source '../app/**/*.{ts,tsx}';
+@source '../src/client/**/*.{ts,tsx}';
+@source '../vendor/ui/src/**/*.{ts,tsx}';
+@source '../vendor/ui-patterns/src/**/*.{ts,tsx}';
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    @apply border-border;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-source-code-pro), monospace;
+}

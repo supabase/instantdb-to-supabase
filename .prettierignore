@@ -1,0 +1,11 @@
+.next
+node_modules
+coverage
+.workflow-data
+app/.well-known/workflow
+test-results
+playwright-report
+pnpm-lock.yaml
+next-env.d.ts
+vendor
+LICENSE

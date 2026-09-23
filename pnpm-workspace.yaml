@@ -1,0 +1,9 @@
+packages:
+  - 'vendor/*'
+
+allowBuilds:
+  '@swc/core': false
+  cbor-extract: false
+  esbuild: false
+  sharp: false
+  unrs-resolver: false

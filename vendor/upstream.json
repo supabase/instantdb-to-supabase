@@ -1,0 +1,326 @@
+{
+  "repository": "https://github.com/supabase/supabase",
+  "commit": "bc1fa87cbf700a189c46fde306b7543976c14932",
+  "files": [
+    {
+      "source": "apps/studio/fonts/inter/InterVariable.woff2",
+      "path": "public/fonts/InterVariable.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "source": "apps/studio/fonts/source-code-pro/SourceCodePro-Variable.woff2",
+      "path": "public/fonts/SourceCodePro-Variable.woff2",
+      "sha256": "8b774aaa5137a38ef40f4ac9d36db9a5eee152b2f66589dfdc82ff007fc87135"
+    },
+    {
+      "source": "packages/common/Providers.tsx",
+      "path": "vendor/common/Providers.tsx",
+      "sha256": "02a63167728940240b19a83850aa2390524d7848ec6e7c2d4dd0c5da185be47b"
+    },
+    {
+      "source": "packages/config/css/animations.css",
+      "path": "vendor/config/css/animations.css",
+      "sha256": "39b9eb9bb85dabd0041e04ffa22af6b794487bfc0d8cd67e574d8fd8b0b867bc"
+    },
+    {
+      "source": "packages/config/css/base.css",
+      "path": "vendor/config/css/base.css",
+      "sha256": "75fe1085c64317cb93f4e16b8f22cc4b6f5d9b4efb078e46316e2b2e2407f74a"
+    },
+    {
+      "source": "packages/config/css/colors.css",
+      "path": "vendor/config/css/colors.css",
+      "sha256": "2a13496a118844d18962a2517889c225bd1201e16621a5d1b93bcbbc085a79a6"
+    },
+    {
+      "source": "packages/config/css/theme.css",
+      "path": "vendor/config/css/theme.css",
+      "sha256": "6293b0caa96d62fcacdba834e7eb4040bc7526640dacb982f401d7f0f7b4cd9a"
+    },
+    {
+      "source": "packages/config/css/utilities.css",
+      "path": "vendor/config/css/utilities.css",
+      "sha256": "b52b24947d5b3a89939c906b8e435ecdd8f06d640784d148dd8b002ff434c09b"
+    },
+    {
+      "source": "packages/config/css/variants.css",
+      "path": "vendor/config/css/variants.css",
+      "sha256": "89cdf2f41c0beb0f5936ac7a194ff8b34ef6201d786c4af19fa69177368cffa4"
+    },
+    {
+      "source": "packages/config/tailwind-plugins/hit-area.css",
+      "path": "vendor/config/tailwind-plugins/hit-area.css",
+      "sha256": "4772dd1c04b081b585730f58acdef63529eecf343d8a5ff4011121c5f313322b"
+    },
+    {
+      "source": "packages/config/tailwind.config.css",
+      "path": "vendor/config/tailwind.config.css",
+      "sha256": "6e59d2cb3a21a9507502908018da3692a483c82166eb557ce6b3b409f73b41fe"
+    },
+    {
+      "source": "packages/config/typography.config.js",
+      "path": "vendor/config/typography.config.js",
+      "sha256": "2af4b8fd68166f823b088525d46233a438e53892929ebc88a235045ca547cb09"
+    },
+    {
+      "source": "packages/config/typography.css",
+      "path": "vendor/config/typography.css",
+      "sha256": "a41860d978818c35fe6f4935a3387de4addb8064b39b83d163676f94f5cff3ba"
+    },
+    {
+      "source": "packages/config/unset-tw-colors.css",
+      "path": "vendor/config/unset-tw-colors.css",
+      "sha256": "148c0b19b4df850615154ef922f3792b7dc581f7752e25cf87efad68a1a648e8"
+    },
+    {
+      "source": "packages/pg-meta/src/pg-format/index.ts",
+      "path": "vendor/pg-meta/src/pg-format/index.ts",
+      "sha256": "09fcff418529dbe903556e56194f98e6d66c35576c80556d304260727be4a1f7"
+    },
+    {
+      "source": "packages/pg-meta/src/pg-format/reserved.ts",
+      "path": "vendor/pg-meta/src/pg-format/reserved.ts",
+      "sha256": "47397976d144a1010638901c1add2da34d480cc96e4e03a8e228545fe1223a4d"
+    },
+    {
+      "source": "packages/pg-meta/src/sql/studio/database/migrations.ts",
+      "path": "vendor/pg-meta/src/sql/studio/database/migrations.ts",
+      "sha256": "623a718dc990b8249263948e402b4c61c4f4e63719dc7ab11276b66af2d9dc47"
+    },
+    {
+      "source": "packages/pg-meta/test/pg-format.test.ts",
+      "path": "vendor/pg-meta/test/pg-format.test.ts",
+      "sha256": "7fb914f41dd8642056d2db36a3391600c3e2652b6d302af4d760bcac8623cfd7"
+    },
+    {
+      "source": "packages/ui-patterns/src/Admonition/Admonition.constants.ts",
+      "path": "vendor/ui-patterns/src/Admonition/Admonition.constants.ts",
+      "sha256": "6bcc21038491d6510cc9887b9678cff3f8d8d21fb6a3a9c71d76baea2bf0f668"
+    },
+    {
+      "source": "packages/ui-patterns/src/Admonition/Admonition.tsx",
+      "path": "vendor/ui-patterns/src/Admonition/Admonition.tsx",
+      "sha256": "8be08aa67186d58412785b83b073df70fb13eb45db8483c6ed301a26f783625a"
+    },
+    {
+      "source": "packages/ui-patterns/src/Admonition/Admonition.types.ts",
+      "path": "vendor/ui-patterns/src/Admonition/Admonition.types.ts",
+      "sha256": "919ad66290c22c215a1727945b645aa444b7592fe66b3e3d918e6a78fc3f4a53"
+    },
+    {
+      "source": "packages/ui-patterns/src/Admonition/AdmonitionIcons.tsx",
+      "path": "vendor/ui-patterns/src/Admonition/AdmonitionIcons.tsx",
+      "sha256": "52772a14a291bb619a74903205701230ab80f354e5352ca4567d01ff10ce23d3"
+    },
+    {
+      "source": "packages/ui-patterns/src/Admonition/index.tsx",
+      "path": "vendor/ui-patterns/src/Admonition/index.tsx",
+      "sha256": "9fa0b74be0d12dde409581fc19c613b8feda45c17d5df9a53ae2bbdc1248a434"
+    },
+    {
+      "source": "packages/ui-patterns/src/CodeBlock/CodeBlock.tsx",
+      "path": "vendor/ui-patterns/src/CodeBlock/CodeBlock.tsx",
+      "sha256": "c363420820efc40db2fcf16a3b6874128dac214015c40df95de34c4b5c3f88e8"
+    },
+    {
+      "source": "packages/ui-patterns/src/CodeBlock/CodeBlock.utils.ts",
+      "path": "vendor/ui-patterns/src/CodeBlock/CodeBlock.utils.ts",
+      "sha256": "17ea76c86edc160d59873ae4bb0040b5007705e75c7627173708a3b853195d94"
+    },
+    {
+      "source": "packages/ui-patterns/src/CodeBlock/index.tsx",
+      "path": "vendor/ui-patterns/src/CodeBlock/index.tsx",
+      "sha256": "dca2bd7947d7a7bf084fd1a574e856940f36993b4f9dfcd5676f7edebdc75890"
+    },
+    {
+      "source": "packages/ui-patterns/src/form/FormItemLayout/FormItemLayout.tsx",
+      "path": "vendor/ui-patterns/src/form/FormItemLayout/FormItemLayout.tsx",
+      "sha256": "42afb695783e7b357eb2e3b83e9459f6b17bd92d0cbe2724261ec4bf3c3ac70f"
+    },
+    {
+      "source": "packages/ui-patterns/src/form/Layout/FormLayout.tsx",
+      "path": "vendor/ui-patterns/src/form/Layout/FormLayout.tsx",
+      "sha256": "3038ddbc5e3169077e8a0f3dd5d8ebf81c11c05695ede9a7879c4c98baf9071b"
+    },
+    {
+      "source": "packages/ui-patterns/src/PageContainer/index.tsx",
+      "path": "vendor/ui-patterns/src/PageContainer/index.tsx",
+      "sha256": "85876f2e296a05560b9850e67701d9c2380b948da968f0644eeeba5603fa1e0c"
+    },
+    {
+      "source": "packages/ui-patterns/src/PageHeader/index.tsx",
+      "path": "vendor/ui-patterns/src/PageHeader/index.tsx",
+      "sha256": "9a19ce9ca551045c8be99e8dcb37ef6df281a1bd9890549c400f6249da7ca2af"
+    },
+    {
+      "source": "packages/ui-patterns/src/PageSection/index.tsx",
+      "path": "vendor/ui-patterns/src/PageSection/index.tsx",
+      "sha256": "a0d4395257eac1a7be47bdcdb5425a55c2198d57a34c7b54aaab5afab0d152d4"
+    },
+    {
+      "source": "packages/ui-patterns/src/ThemeToggle.tsx",
+      "path": "vendor/ui-patterns/src/ThemeToggle.tsx",
+      "sha256": "c496176f6255f3d6e376a35d06e6531f3efd13955d4e2ed4b61adf69894d3b46"
+    },
+    {
+      "source": "packages/ui/build/css/source/compat.css",
+      "path": "vendor/ui/build/css/source/compat.css",
+      "sha256": "c1e30ddc7ba7adde85fe217a552dac2aaa7bf15b830fe652fdcf3f89e8959b9d"
+    },
+    {
+      "source": "packages/ui/build/css/source/global.css",
+      "path": "vendor/ui/build/css/source/global.css",
+      "sha256": "1d66e4f617c437ed444e23ef19a7ce5687a3001589ba32c4f85b9934a9a07816"
+    },
+    {
+      "source": "packages/ui/build/css/source/semantic.css",
+      "path": "vendor/ui/build/css/source/semantic.css",
+      "sha256": "f71c5bd51b93a701e0eeeb9665737641e54f3b67bd268bc59d6820e74b2e30dc"
+    },
+    {
+      "source": "packages/ui/build/css/themes/dark.css",
+      "path": "vendor/ui/build/css/themes/dark.css",
+      "sha256": "9b8193daa096766f1021b154cf3e0222322e1ed2cccc348079de5023e8c4f628"
+    },
+    {
+      "source": "packages/ui/build/css/themes/light.css",
+      "path": "vendor/ui/build/css/themes/light.css",
+      "sha256": "df06d9db36b7356ee9db176674c54b8e545bd899b42f148f9e26ea61bdb62821"
+    },
+    {
+      "source": "packages/ui/src/components/Button/Button.tsx",
+      "path": "vendor/ui/src/components/Button/Button.tsx",
+      "sha256": "6426cdd9a8d0346453dba2de807b79223601eb94fb59c7b652aaed3246a2e263"
+    },
+    {
+      "source": "packages/ui/src/components/Button/index.tsx",
+      "path": "vendor/ui/src/components/Button/index.tsx",
+      "sha256": "09cba733866a92cbb2bff3b5551f4b5a8f88827c1d682814b63f5d22eedf3ba0"
+    },
+    {
+      "source": "packages/ui/src/components/hooks/use-horizontal-scroll.ts",
+      "path": "vendor/ui/src/components/hooks/use-horizontal-scroll.ts",
+      "sha256": "91e2dce95cfb09d22efe895e03d6b75a2e1ed079961298df14a885f8bb8c2611"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/alert.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/alert.tsx",
+      "sha256": "ae1921dd896e28c30b55c1547ade3fe3b5956b11c85a31bbf8e89ede092992c9"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/badge.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/badge.tsx",
+      "sha256": "947c47db9fdd454dc4230ed06b01635a545f410dd76b91a0c2188c9338dcb03f"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/breadcrumb.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/breadcrumb.tsx",
+      "sha256": "935b3c59091a7c9b51a15afb44ce3d200fb519fc17beab14575ebfe534f2b0b6"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/card.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/card.tsx",
+      "sha256": "6d5d833884d9e60be0cb8fb0fb34921e4ab1f70f8290f5d6e5d89b0d0937c8fe"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/dropdown-menu.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/dropdown-menu.tsx",
+      "sha256": "6ac602ca150d29122ccc5842f3e25f149d823160ff0c650524a61a90e88ff3b0"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/form.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/form.tsx",
+      "sha256": "b5dd7ca0ceff3902a0d2be2c4048cef07d8d893463f370e306adfd935a154151"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/input-group.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/input-group.tsx",
+      "sha256": "173407db42c64daf8ae98faff67a93e252aa12f0e70a5c0af9ce426a824c14e5"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/input.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/input.tsx",
+      "sha256": "71f625bb134961823cf0fdedc178c8d29661a0a616bf5b940eeaa7ae50e3beb3"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/label.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/label.tsx",
+      "sha256": "779b4e19a2e8948de484867386f66dee4bd4c2ca5d9093f7467bd05d92b77d3a"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/select.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/select.tsx",
+      "sha256": "34c9ba62cd026358c24abf8a352a7057ad5ea5baf70899458c980f711138fcc7"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/table.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/table.tsx",
+      "sha256": "2c6f592e838b2a054b6cdbb029eecd70859fdd0c17605e9d08aa687ee28e81f7"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/textarea.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/textarea.tsx",
+      "sha256": "fd3400f7e17df8b76d1db764722b1b3c7d413629f097d1bf8e0ca87f31cf8206"
+    },
+    {
+      "source": "packages/ui/src/components/shadcn/ui/tooltip.tsx",
+      "path": "vendor/ui/src/components/shadcn/ui/tooltip.tsx",
+      "sha256": "79bf4cfe6a56a2a123b75e31a996eedc568af906c3ec620b5a24e9a91cf0455e"
+    },
+    {
+      "source": "packages/ui/src/components/ShadowScrollArea/index.tsx",
+      "path": "vendor/ui/src/components/ShadowScrollArea/index.tsx",
+      "sha256": "48a9a78968b206807ceb8ab663fbbcba9804516979a2dac6a9d9fe2f1690f96f"
+    },
+    {
+      "source": "packages/ui/src/components/ThemeProvider/singleThemes.ts",
+      "path": "vendor/ui/src/components/ThemeProvider/singleThemes.ts",
+      "sha256": "0850911d1eae49aade743daa600597d101389822eca4ddec6913218c96d94de9"
+    },
+    {
+      "source": "packages/ui/src/lib/constants.ts",
+      "path": "vendor/ui/src/lib/constants.ts",
+      "sha256": "bd2160caad19dc2792d820ff4dffbfff889f4c402638785a74e7e9da8566d056"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/clipboard.ts",
+      "path": "vendor/ui/src/lib/utils/clipboard.ts",
+      "sha256": "71ff3265674f038d2d20bfab7248b63da16c9d108e1e6fa0e792f1496e30ccea"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/cn.ts",
+      "path": "vendor/ui/src/lib/utils/cn.ts",
+      "sha256": "52d0aaf54c5aa303b415f2ef21c7a5e875701db92ce1c8810134eb7b67d0175d"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/getExplicitTabIndex.ts",
+      "path": "vendor/ui/src/lib/utils/getExplicitTabIndex.ts",
+      "sha256": "2048bb4d70db9f3b7bd6daa0184e3ca1ef9ce256ed48169cc9f80216cfe73d16"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/index.ts",
+      "path": "vendor/ui/src/lib/utils/index.ts",
+      "sha256": "b00bb11ccf40ec2fe6ab492e4342012b4b9935340ca69dd8acf76d02f6f7c163"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/mergeDeep.ts",
+      "path": "vendor/ui/src/lib/utils/mergeDeep.ts",
+      "sha256": "7252055965945221b12642547965c6ef63633f8efef2277d6ed538de683751db"
+    },
+    {
+      "source": "packages/ui/src/lib/utils/randomIdGenerator.ts",
+      "path": "vendor/ui/src/lib/utils/randomIdGenerator.ts",
+      "sha256": "4061eb84d84d975842edc8c9e5119d8b7f545a58382b26ccfe5c53c731994c2f"
+    },
+    {
+      "source": "packages/eslint-config-supabase/rules/no-await-before-copy-to-clipboard.js",
+      "path": "vendor/eslint/no-await-before-copy-to-clipboard.cjs",
+      "sha256": "70bb57fc4026fdf61acd5847e9322c534ed56529a7128ac3e8ef5a587bb7922f"
+    },
+    {
+      "source": "packages/eslint-config-supabase/rules/require-explicit-tabindex.js",
+      "path": "vendor/eslint/require-explicit-tabindex.cjs",
+      "sha256": "8d98a6bde21720c45471eda3b8816087806715f2d84b5e0b1939d4f1935b7212"
+    }
+  ]
+}
