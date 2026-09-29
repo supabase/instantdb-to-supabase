@@ -31,6 +31,7 @@ import {
 } from './contracts'
 import { ImportHandoff } from './import-handoff'
 import { ImportShell } from './import-shell'
+import { ImportWarning } from './import-warning'
 import { MigrationStepper, migrationSteps } from './primitives'
 import {
   OAuthDestinationForm,
@@ -259,6 +260,7 @@ export function ImportPage() {
         </PageHeaderMeta>
       </PageHeader>
       <PageContainer size="default" className="pb-10">
+        <ImportWarning />
         {showStepper && <MigrationStepper current={step} />}
         {!jobId && <SupabaseConnectionPanel connection={supabase} disabled={busy || !ready} />}
         {supabase.ready === false && (
