@@ -71,7 +71,7 @@ test('retries throttled import preparation with the original selection', async (
     await page.clock.fastForward(1000)
     expect(submissions).toHaveLength(1)
     await page.clock.fastForward(5000)
-    await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    await expect(page.getByRole('main').getByRole('alert', { name: 'Danger' })).toContainText(
       'Destination is not blank'
     )
     expect(submissions).toHaveLength(2)
@@ -106,7 +106,7 @@ test('offers a connection retry after an API failure without showing missing con
         })
   })
   await page.goto('/')
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+  await expect(page.getByRole('main').getByRole('alert', { name: 'Danger' })).toContainText(
     'Supabase is temporarily unavailable'
   )
   await expect(
