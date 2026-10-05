@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { fullEntries } from '../tests/fixtures'
 import { mockSupabaseConnection, projectRef } from './oauth-fixtures'
 
@@ -30,7 +31,7 @@ test('waits for the rate-limit deadline and loads projects without reconnecting'
       },
     })
   })
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page.getByRole('status')).toContainText('Waiting for Supabase. Retrying at')
   await page.clock.fastForward(1000)
   expect(calls).toBe(1)
@@ -60,7 +61,7 @@ test('retries throttled import preparation with the original selection', async (
           })
         : route.fulfill({ status: 409, json: { error: 'Destination is not blank' } })
     })
-    await page.goto('/')
+    await page.goto(basePath)
     await page.getByLabel('Backup folder', { exact: true }).setInputFiles(folder)
     await page.getByRole('combobox', { name: 'Project', exact: true }).click()
     await page
@@ -105,7 +106,7 @@ test('offers a connection retry after an API failure without showing missing con
           },
         })
   })
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page.getByRole('main').getByRole('alert', { name: 'Danger' })).toContainText(
     'Supabase is temporarily unavailable'
   )

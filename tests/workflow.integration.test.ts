@@ -9,6 +9,7 @@ import { Client } from 'pg'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { getRun } from 'workflow/api'
 
+import { basePath } from '../src/base-path'
 import { schemaFingerprint } from '../src/import/fingerprint'
 import { readBackupFolder } from '../src/import/input'
 import { analyze } from '../src/import/plan'
@@ -172,7 +173,7 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
     throw new Error('Workflow run did not finish')
   }
   async function httpRun(expected: string) {
-    const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}/api/import-jobs/${jobId}`
+    const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}${basePath}/api/import-jobs/${jobId}`
     const headers = { Authorization: 'Bearer local-workflow-test-token' }
     const response = await fetch(url, { method: 'POST', headers })
     expect(response.status).toBe(202)
@@ -599,7 +600,7 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
         await db.query('SELECT pg_advisory_unlock(1735289201,1)')
       }
       // A new run acknowledges the prior failure as it resumes; completion clears it.
-      const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}/api/import-jobs/${jobId}`
+      const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}${basePath}/api/import-jobs/${jobId}`
       const restarted = await fetch(url, {
         method: 'POST',
         headers: { Authorization: 'Bearer local-workflow-test-token' },
@@ -620,7 +621,7 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
     'runs through the actual Workflow HTTP runtime with duplicate starts',
     async () => {
       await upload()
-      const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}/api/import-jobs/${jobId}`
+      const url = `${process.env.IMPORT_WORKFLOW_TEST_URL}${basePath}/api/import-jobs/${jobId}`
       const headers = { Authorization: 'Bearer local-workflow-test-token' }
       expect((await fetch(url)).status).toBe(401)
       const starts = await Promise.all([

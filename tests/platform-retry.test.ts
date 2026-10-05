@@ -75,7 +75,10 @@ it.each([429, 500, 502, 503, 504])('defers %i without an in-process retry loop',
 it('propagates token throttling without turning it into invalid authorization', async () => {
   vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'test')
   vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'secret')
-  vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'http://localhost:3009/api/supabase/callback')
+  vi.stubEnv(
+    'IMPORT_OAUTH_REDIRECT_URI',
+    'http://localhost:3009/migrate/instantdb/api/supabase/callback'
+  )
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(new Response(null, { status: 429, headers: { 'Retry-After': '60' } }))

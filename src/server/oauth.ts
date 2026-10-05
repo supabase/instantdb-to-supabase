@@ -3,6 +3,7 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
+import { basePath } from '../base-path'
 import { connectionSchema } from '../client/contracts'
 import { PlatformRetryError } from '../platform-retry'
 import { capture, eventId, telemetryId } from '../telemetry/server'
@@ -41,13 +42,13 @@ async function lock(db: Client, owner: string) {
 function flowCookie(value: string, age: number) {
   const secure = new URL(oauthConfig().redirectUri).protocol === 'https:' ? '; Secure' : ''
   // OAuth redirects are cross-site top-level navigations; the import session stays Strict.
-  return `${flowCookieName}=${value}; Path=/api/supabase; HttpOnly; SameSite=Lax; Max-Age=${age}${secure}`
+  return `${flowCookieName}=${value}; Path=${basePath}/api/supabase; HttpOnly; SameSite=Lax; Max-Age=${age}${secure}`
 }
 function finish(result: 'connected' | 'denied' | 'error') {
   return new Response(null, {
     status: 303,
     headers: {
-      Location: `${oauthConfig().origin}/?supabase=${result}`,
+      Location: `${oauthConfig().origin}${basePath}?supabase=${result}`,
       'Set-Cookie': flowCookie('', 0),
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',

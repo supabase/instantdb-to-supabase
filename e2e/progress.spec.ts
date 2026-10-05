@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { mockSupabaseConnection } from './oauth-fixtures'
 
 test('shows live batches and stages without resetting during a continuation or failed poll', async ({
@@ -32,7 +33,7 @@ test('shows live batches and stages without resetting during a continuation or f
           }
     )
   )
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await expect(page.getByText('100 batches completed.', { exact: false })).toBeVisible()
   const records = page.getByRole('listitem').filter({ hasText: 'Import records' })
   await expect(records).toContainText('In progress')

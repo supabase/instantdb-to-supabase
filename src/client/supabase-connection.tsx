@@ -34,6 +34,7 @@ import {
 } from 'ui-patterns/PageSection'
 import { z } from 'zod'
 
+import { basePath } from '../base-path'
 import { useTrack } from '../telemetry/client'
 import type { ImportConnection, SupabaseProject } from './contracts'
 import { requestJson, type RetryOptions } from './request'
@@ -46,7 +47,7 @@ type ConnectionState = {
   error?: string
 }
 function oauthRequest<T>(path: string, method = 'GET', options?: RetryOptions): Promise<T> {
-  return requestJson(`/api/supabase/${path}`, { method, cache: 'no-store' }, options)
+  return requestJson(`${basePath}/api/supabase/${path}`, { method, cache: 'no-store' }, options)
 }
 export function useSupabaseConnection() {
   const track = useTrack()

@@ -20,6 +20,7 @@ import {
   PageSectionTitle,
 } from 'ui-patterns/PageSection'
 
+import { basePath } from '../base-path'
 import { useTrack } from '../telemetry/client'
 import {
   completedBatches,
@@ -520,7 +521,10 @@ export function ImportPage() {
             {jobId && status === 'completed' && <ImportHandoff jobId={jobId} />}
             {jobId && (
               <div className="flex items-center justify-between">
-                <a className="text-xs text-foreground-light underline underline-offset-4" href="/">
+                <a
+                  className="text-xs text-foreground-light underline underline-offset-4"
+                  href={basePath}
+                >
                   Start another import
                 </a>
                 {!finished && (

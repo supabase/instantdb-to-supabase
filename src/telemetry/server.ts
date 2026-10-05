@@ -3,6 +3,7 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
+import { basePath } from '../base-path'
 import { progressStageSchema, type BrowserEvent, type EventMap } from './contracts'
 import type { InstantImportProgressEvent } from './events'
 
@@ -41,7 +42,7 @@ export function telemetryId(request: Request) {
   return z.string().uuid().safeParse(value).success ? value! : null
 }
 export function analyticsCookie(id: string, request: Request) {
-  return `${cookieName}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(request.url).protocol === 'https:' || process.env.VERCEL_ENV === 'production' ? '; Secure' : ''}`
+  return `${cookieName}=${id}; Path=${basePath}; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(request.url).protocol === 'https:' || process.env.VERCEL_ENV === 'production' ? '; Secure' : ''}`
 }
 /** Stable event IDs let PostHog deduplicate retries without emitting source data. */
 export function eventId(key: string) {

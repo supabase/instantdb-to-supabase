@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
+import { basePath } from '../base-path'
 import { platformFetch } from './platform-api'
 import { HttpError } from './session'
 
@@ -22,7 +23,7 @@ export function oauthConfig() {
     redirect.password ||
     redirect.search ||
     redirect.hash ||
-    redirect.pathname !== '/api/supabase/callback' ||
+    redirect.pathname !== `${basePath}/api/supabase/callback` ||
     (redirect.protocol !== 'https:' &&
       !(redirect.protocol === 'http:' && redirect.hostname === 'localhost'))
   )

@@ -72,7 +72,7 @@ jobs:
           pnpm exec next start --port 3009 --hostname 127.0.0.1 > "$RUNNER_TEMP/instant-workflow.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/instant-workflow.pid"
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:3009/api/health > /dev/null; then exit 0; fi
+            if curl --fail --silent http://127.0.0.1:3009/migrate/instantdb/api/health > /dev/null; then exit 0; fi
             sleep 1
           done
           exit 1

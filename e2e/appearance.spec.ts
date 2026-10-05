@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { mockSupabaseConnection, projectRef } from './oauth-fixtures'
 
 test.beforeEach(async ({ page }) => {
@@ -10,7 +11,7 @@ test('switches and persists Studio themes without clearing project selection', a
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.emulateMedia({ colorScheme: 'light' })
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page).toHaveTitle('InstantDB to Supabase Migration')
   await expect(
     page.getByRole('link', { name: 'InstantDB to Supabase migration home' })
@@ -48,7 +49,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
   test(`renders the form on mobile in ${colorScheme} mode`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.emulateMedia({ colorScheme })
-    await page.goto('/')
+    await page.goto(basePath)
     await expect(
       page.getByRole('heading', { name: 'Migrate from InstantDB to Supabase.' })
     ).toBeVisible()

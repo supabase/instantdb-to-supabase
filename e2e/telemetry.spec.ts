@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { mockSupabaseConnection } from './oauth-fixtures'
 
 test('tracks one sanitized pageview and explicit actions without leaking OAuth errors', async ({
@@ -17,7 +18,7 @@ test('tracks one sanitized pageview and explicit actions without leaking OAuth e
       json: { error: 'private-account@example.com: secret connection failure' },
     })
   )
-  await page.goto('/?sensitive=never-capture-this')
+  await page.goto(`${basePath}?sensitive=never-capture-this`)
   await expect(page.getByRole('button', { name: 'Connect Supabase', exact: true })).toBeEnabled()
   await expect.poll(() => events.filter((event) => event.action === '$pageview').length).toBe(1)
   await page.getByRole('button', { name: 'Connect Supabase', exact: true }).click()
@@ -54,7 +55,7 @@ test('privacy signals suppress client capture without disabling the connection f
   await page.route('**/api/supabase/connect', (route) =>
     route.fulfill({ status: 400, json: { error: 'Connection refused' } })
   )
-  await page.goto('/')
+  await page.goto(basePath)
   await page.getByRole('button', { name: 'Connect Supabase', exact: true }).click()
   await expect(page.getByText('Connection refused')).toBeVisible()
   expect(events).toHaveLength(0)
