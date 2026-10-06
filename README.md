@@ -51,7 +51,7 @@ Configure all seven variables in `.env.example` for production. Use a hosted pri
 
 Register the production HTTPS `/migrate/instantdb/api/supabase/callback` URL in the OAuth application and use that exact URL for `IMPORT_OAUTH_REDIRECT_URI`. In production that is `https://supabase.com/migrate/instantdb/api/supabase/callback`: supabase.com proxies `/migrate/instantdb/*` to this deployment, and the bare deployment root redirects there. Set the private service project's Storage file-size limit to accommodate your largest input file; the default 50 MB is too small for large backups. The upload bucket must remain private.
 
-Use this repository root as the Vercel project's Root Directory, `pnpm install --frozen-lockfile` as its Install Command, and `pnpm build` as its Build Command. `vercel.json` selects Singapore; keep functions near the service database. Workflow uses Vercel's managed runtime automatically; do not deploy the local `WORKFLOW_TARGET_WORLD` or `WORKFLOW_LOCAL_DATA_DIR` overrides. After deployment, verify `/migrate/instantdb/api/health`, the OAuth round trip, and signed resumable uploads.
+Use this repository root as the Vercel project's Root Directory and `pnpm build` as its Build Command. `vercel.json` pins the Install Command to `pnpm install --frozen-lockfile` and selects Singapore; keep functions near the service database. Workflow uses Vercel's managed runtime automatically; do not deploy the local `WORKFLOW_TARGET_WORLD` or `WORKFLOW_LOCAL_DATA_DIR` overrides. After deployment, verify `/migrate/instantdb/api/health`, the OAuth round trip, and signed resumable uploads.
 
 ## Durable imports with Workflow v5
 
