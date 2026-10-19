@@ -26,7 +26,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'client')
   vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'secret')
-  vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'http://localhost:3009/api/supabase/callback')
+  vi.stubEnv(
+    'IMPORT_OAUTH_REDIRECT_URI',
+    'http://localhost:3009/migrate/instantdb/api/supabase/callback'
+  )
   vi.stubEnv('IMPORT_CREDENTIAL_KEY', Buffer.alloc(32, 9).toString('base64'))
   connected = true
   cached = undefined

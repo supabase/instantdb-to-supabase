@@ -13,13 +13,13 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-Open http://localhost:3009. Run `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm test:prettier`, and `pnpm build` before committing. The unit suite also runs the upstream SQL-formatting tests. `pnpm test:browser` uses a production build and starts port 3009 unless `IMPORT_WORKFLOW_TEST_URL` points to a separate preview. Integration tests require disposable local projects; never point test credentials at a hosted project.
+Open http://localhost:3009/migrate/instantdb. Run `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm test:prettier`, and `pnpm build` before committing. The unit suite also runs the upstream SQL-formatting tests. `pnpm test:browser` uses a production build and starts port 3009 unless `IMPORT_WORKFLOW_TEST_URL` points to a separate preview. Integration tests require disposable local projects; never point test credentials at a hosted project.
 
 This repository is independent of the Supabase monorepo. The four packages under `vendor/` resolve locally; installing or building does not need the upstream checkout. See [vendor/README.md](vendor/README.md) for provenance and update instructions.
 
 ## OAuth configuration
 
-Register a Supabase platform OAuth application with `http://localhost:3009/api/supabase/callback` for local development and your deployment's HTTPS callback for production. Configure `IMPORT_OAUTH_CLIENT_ID`, `IMPORT_OAUTH_CLIENT_SECRET`, and `IMPORT_OAUTH_REDIRECT_URI` from that application. The importer requests its required scopes when connecting; approve access only to the projects you intend to migrate into.
+Register a Supabase platform OAuth application with `http://localhost:3009/migrate/instantdb/api/supabase/callback` for local development and your deployment's HTTPS callback for production. Configure `IMPORT_OAUTH_CLIENT_ID`, `IMPORT_OAUTH_CLIENT_SECRET`, and `IMPORT_OAUTH_REDIRECT_URI` from that application. The importer requests its required scopes when connecting; approve access only to the projects you intend to migrate into.
 
 The three `IMPORT_JOB_*` settings point to a separate private service project, not the destination. Set `IMPORT_CREDENTIAL_KEY` to a stable base64-encoded 32-byte secret. Existing service data requires its original key; do not generate a replacement when moving or redeploying this app. All credentials remain server-only. Optional PostHog settings are documented at the end of this file.
 
@@ -31,7 +31,7 @@ Cache Components and Partial Prefetching are enabled. The landing page prerender
 
 When presenting a migrated concept, show its source representation alongside the relevant Supabase SQL and briefly explain the mapping. Keep supporting SQL expandable and distinguish statements verified against the completed import from suggestions that have not run. Applied policies follow this pattern with source rules, `CREATE POLICY` and table grants. Teach the SQL concepts at the point where users encounter them rather than requiring prior Postgres knowledge.
 
-Configure the three `IMPORT_JOB_*` variables below plus `IMPORT_CREDENTIAL_KEY`, a stable base64-encoded 32-byte encryption key. Generate it with `openssl rand -base64 32` and keep it in your secret manager; changing it prevents existing browser jobs from resuming. Then run `pnpm dev` and open http://localhost:3009. The operator registry and bearer token are not required for browser imports.
+Configure the three `IMPORT_JOB_*` variables below plus `IMPORT_CREDENTIAL_KEY`, a stable base64-encoded 32-byte encryption key. Generate it with `openssl rand -base64 32` and keep it in your secret manager; changing it prevents existing browser jobs from resuming. Then run `pnpm dev` and open http://localhost:3009/migrate/instantdb. The operator registry and bearer token are not required for browser imports.
 
 Connect Supabase first, then select an extracted folder and an authorized project. The server discovers the session pooler and obtains temporary database credentials through OAuth. Project URLs, passwords, and API keys never need to be entered in the browser. Configure platform OAuth as described above.
 
@@ -49,9 +49,9 @@ Deploy this repository root, including `vendor/` and `public/fonts/`, using Node
 
 Configure all seven variables in `.env.example` for production. Use a hosted private service project and a direct or session database connection; hosted Supabase connections verify the server certificate against the bundled Supabase CA. The database login needs to own the private service schema and be able to create it. Store credentials as sensitive Vercel environment variables, and keep the encryption key stable across deployments.
 
-Register the production HTTPS `/api/supabase/callback` URL in the OAuth application and use that exact URL for `IMPORT_OAUTH_REDIRECT_URI`. Set the private service project's Storage file-size limit to accommodate your largest input file; the default 50 MB is too small for large backups. The upload bucket must remain private.
+Register the production HTTPS `/migrate/instantdb/api/supabase/callback` URL in the OAuth application and use that exact URL for `IMPORT_OAUTH_REDIRECT_URI`. In production that is `https://supabase.com/migrate/instantdb/api/supabase/callback`: supabase.com proxies `/migrate/instantdb/*` to this deployment, and the bare deployment root redirects there. Set the private service project's Storage file-size limit to accommodate your largest input file; the default 50 MB is too small for large backups. The upload bucket must remain private.
 
-Use this repository root as the Vercel project's Root Directory, `pnpm install --frozen-lockfile` as its Install Command, and `pnpm build` as its Build Command. `vercel.json` selects Singapore; keep functions near the service database. Workflow uses Vercel's managed runtime automatically; do not deploy the local `WORKFLOW_TARGET_WORLD` or `WORKFLOW_LOCAL_DATA_DIR` overrides. After deployment, verify `/api/health`, the OAuth round trip, and signed resumable uploads.
+Use this repository root as the Vercel project's Root Directory and `pnpm build` as its Build Command. `vercel.json` pins the Install Command to `pnpm install --frozen-lockfile` and selects Singapore; keep functions near the service database. Workflow uses Vercel's managed runtime automatically; do not deploy the local `WORKFLOW_TARGET_WORLD` or `WORKFLOW_LOCAL_DATA_DIR` overrides. After deployment, verify `/migrate/instantdb/api/health`, the OAuth round trip, and signed resumable uploads.
 
 ## Durable imports with Workflow v5
 
@@ -81,15 +81,15 @@ pnpm dev
 
 # Start or resume processing after upload has frozen the input manifest.
 curl -X POST -H "Authorization: Bearer $IMPORT_WORKFLOW_TOKEN" \
-  http://localhost:3009/api/import-jobs/JOB_UUID
+  http://localhost:3009/migrate/instantdb/api/import-jobs/JOB_UUID
 
 # Inspect phase, revision, error code, and cancellation status.
 curl -H "Authorization: Bearer $IMPORT_WORKFLOW_TOKEN" \
-  http://localhost:3009/api/import-jobs/JOB_UUID
+  http://localhost:3009/migrate/instantdb/api/import-jobs/JOB_UUID
 
 # Request cancellation at the next batch boundary. This does not delete data.
 curl -X DELETE -H "Authorization: Bearer $IMPORT_WORKFLOW_TOKEN" \
-  http://localhost:3009/api/import-jobs/JOB_UUID
+  http://localhost:3009/migrate/instantdb/api/import-jobs/JOB_UUID
 
 # Export completed migration files, permission reports, and verification totals.
 pnpm import:workflow --job JOB_UUID --output /path/to/artifacts

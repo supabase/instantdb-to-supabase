@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { mockSupabaseConnection } from './oauth-fixtures'
 
 test('resumes polling after a successful retry even when the first status request fails', async ({
@@ -34,7 +35,7 @@ test('resumes polling after a successful retry even when the first status reques
       },
     })
   })
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await expect(page.getByRole('heading', { name: 'Import paused after an error' })).toBeVisible()
   await page.getByRole('button', { name: 'Retry import', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Import paused after an error' })).toHaveCount(0)

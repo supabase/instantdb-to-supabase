@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import { fullEntries } from '../tests/fixtures'
 import { databaseUrl, mockSupabaseConnection, projectRef } from './oauth-fixtures'
 
@@ -31,7 +32,7 @@ test('guides users to create a blank project and refreshes the picker afterward'
       },
     })
   })
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page.getByText('Use a new, empty Supabase project.', { exact: false })).toBeVisible()
   const create = page.getByRole('link', { name: 'Create a new project', exact: true })
   await expect(create).toHaveAttribute('href', 'https://supabase.com/dashboard/new/_')
@@ -54,7 +55,7 @@ test('prerenders the landing page without waiting for JavaScript or a connection
   const context = await browser.newContext({ javaScriptEnabled: false })
   try {
     const page = await context.newPage()
-    await page.goto(baseURL!)
+    await page.goto(`${baseURL}${basePath}`)
     await expect(
       page.getByRole('heading', { name: 'Migrate from InstantDB to Supabase.' })
     ).toBeVisible()
@@ -69,7 +70,7 @@ test('prerenders the landing page without waiting for JavaScript or a connection
 test('checks deployment readiness at request time without caching the connection', async ({
   request,
 }) => {
-  const response = await request.get('/api/supabase/connection')
+  const response = await request.get(`${basePath}/api/supabase/connection`)
   expect(response.status()).toBe(200)
   expect(response.headers()['cache-control']).toBe('no-store')
   expect(await response.json()).toMatchObject({ ready: true, connected: false, projects: [] })
@@ -77,7 +78,7 @@ test('checks deployment readiness at request time without caching the connection
 
 test('requires Connect Supabase and has no raw credential fallback', async ({ page }) => {
   await mockSupabaseConnection(page, false)
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page.getByRole('button', { name: 'Connect Supabase', exact: true })).toBeVisible()
   await expect(page.getByLabel('Backup folder', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Project URL', { exact: true })).toHaveCount(0)
@@ -87,7 +88,7 @@ test('requires Connect Supabase and has no raw credential fallback', async ({ pa
 
 test('shows a configuration state instead of falling back to raw credentials', async ({ page }) => {
   await mockSupabaseConnection(page, false, false)
-  await page.goto('/')
+  await page.goto(basePath)
   await expect(page.getByRole('button', { name: 'Connect Supabase', exact: true })).toBeDisabled()
   await expect(
     page.getByText(/Supabase OAuth is not configured for this deployment\./)
@@ -107,7 +108,7 @@ test('submits only the authorized project reference without credentials', async 
     await page.route('**/api/browser-imports', (route) =>
       route.fulfill({ status: 409, json: { error: 'Destination is not blank' } })
     )
-    await page.goto('/')
+    await page.goto(basePath)
     await page.getByLabel('Backup folder', { exact: true }).setInputFiles(folder)
     await page.getByRole('combobox', { name: 'Project', exact: true }).click()
     await page
@@ -116,7 +117,8 @@ test('submits only the authorized project reference without credentials', async 
     await expect(page.getByLabel('Postgres connection string', { exact: true })).toHaveCount(0)
     const sent = page.waitForRequest(
       (request) =>
-        request.method() === 'POST' && new URL(request.url()).pathname === '/api/browser-imports'
+        request.method() === 'POST' &&
+        new URL(request.url()).pathname === `${basePath}/api/browser-imports`
     )
     await page.getByRole('button', { name: 'Start import', exact: true }).click()
     expect((await sent).postDataJSON().target).toEqual({ mode: 'oauth', projectRef })
@@ -134,7 +136,7 @@ test('rejects manual credential payloads at the browser API boundary', async ({
   request,
   baseURL,
 }) => {
-  const response = await request.post('/api/browser-imports', {
+  const response = await request.post(`${basePath}/api/browser-imports`, {
     headers: { Origin: new URL(baseURL!).origin },
     data: {
       target: {

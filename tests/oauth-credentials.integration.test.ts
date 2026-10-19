@@ -26,7 +26,10 @@ describe.skipIf(!url)('durable OAuth credential leases', () => {
     vi.stubEnv('IMPORT_CREDENTIAL_KEY', Buffer.alloc(32, 8).toString('base64'))
     vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', owner)
     vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'test')
-    vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'http://localhost:3009/api/supabase/callback')
+    vi.stubEnv(
+      'IMPORT_OAUTH_REDIRECT_URI',
+      'http://localhost:3009/migrate/instantdb/api/supabase/callback'
+    )
     await db.query(
       safeSql`INSERT INTO instant_import_service.oauth_connections(session_hash,tokens,expires_at) VALUES($1,$2,$3)`,
       [

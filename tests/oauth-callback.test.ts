@@ -13,14 +13,17 @@ const state = 'a'.repeat(43),
   cookie = 'b'.repeat(43),
   owner = 'owner'
 const callback = (query = `state=${state}&code=authorization-code`, value = cookie) =>
-  new Request(`http://localhost:3009/api/supabase/callback?${query}`, {
+  new Request(`http://localhost:3009/migrate/instantdb/api/supabase/callback?${query}`, {
     headers: { cookie: `instant-import-oauth-flow=${value}` },
   })
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'client')
   vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'private-secret')
-  vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'http://localhost:3009/api/supabase/callback')
+  vi.stubEnv(
+    'IMPORT_OAUTH_REDIRECT_URI',
+    'http://localhost:3009/migrate/instantdb/api/supabase/callback'
+  )
   vi.stubEnv('IMPORT_CREDENTIAL_KEY', Buffer.alloc(32, 7).toString('base64'))
 })
 afterEach(() => {
@@ -55,7 +58,9 @@ describe('OAuth callback browser binding and replay protection', () => {
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
     const result = await supabaseCallback(callback(undefined, 'x'.repeat(43)))
-    expect(result.headers.get('location')).toBe('http://localhost:3009/?supabase=error')
+    expect(result.headers.get('location')).toBe(
+      'http://localhost:3009/migrate/instantdb?supabase=error'
+    )
     expect(fetcher).not.toHaveBeenCalled()
   })
   it('consumes the state on denial without requesting tokens', async () => {
@@ -82,7 +87,9 @@ describe('OAuth callback browser binding and replay protection', () => {
     )
     vi.stubGlobal('fetch', fetcher)
     const result = await supabaseCallback(callback())
-    expect(result.headers.get('location')).toBe('http://localhost:3009/?supabase=connected')
+    expect(result.headers.get('location')).toBe(
+      'http://localhost:3009/migrate/instantdb?supabase=connected'
+    )
     const insert = store.query.mock.calls.find(([sql]) =>
       sql.startsWith('INSERT INTO instant_import_service.oauth_connections')
     )!
@@ -100,7 +107,7 @@ describe('OAuth callback browser binding and replay protection', () => {
   })
   it('rejects cross-origin initiation before storing OAuth state', async () => {
     const response = await connectSupabase(
-      new Request('http://localhost:3009/api/supabase/connect', {
+      new Request('http://localhost:3009/migrate/instantdb/api/supabase/connect', {
         method: 'POST',
         headers: { origin: 'https://other.example' },
       })

@@ -1,6 +1,7 @@
 import { createSHA256 } from 'hash-wasm'
 import { Upload } from 'tus-js-client'
 
+import { basePath } from '../base-path'
 import type { FileDescriptor, ImportConnection } from './contracts'
 import { requestJson, type RetryOptions } from './request'
 
@@ -46,7 +47,7 @@ export async function api<T>(
   options?: RetryOptions
 ): Promise<T> {
   return requestJson<T>(
-    `/api/browser-imports${path}`,
+    `${basePath}/api/browser-imports${path}`,
     {
       method,
       headers: body === undefined ? {} : { 'Content-Type': 'application/json' },

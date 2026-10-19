@@ -171,7 +171,10 @@ describe('browser session and request boundary', () => {
   it('keeps Secure when a TLS-terminating proxy hands Next an http URL', () => {
     vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'client')
     vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'private-secret')
-    vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'https://import.example/api/supabase/callback')
+    vi.stubEnv(
+      'IMPORT_OAUTH_REDIRECT_URI',
+      'https://import.example/migrate/instantdb/api/supabase/callback'
+    )
     expect(session(new Request('http://import.example'), true).cookie).toContain('; Secure')
   })
   it('asks an unconnected browser to connect instead of reporting a missing import', () => {
@@ -218,6 +221,22 @@ it('checks the browser-facing Host when Next normalizes the internal request URL
       })
     )
   ).not.toThrow()
+})
+
+it('accepts the configured callback origin when a proxy rewrites Host', () => {
+  vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'client')
+  vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'private-secret')
+  vi.stubEnv(
+    'IMPORT_OAUTH_REDIRECT_URI',
+    'https://supabase.example/migrate/instantdb/api/supabase/callback'
+  )
+  const proxied = (origin: string) =>
+    new Request('https://importer.example/migrate/instantdb/api/browser-imports', {
+      headers: { host: 'importer.example', origin },
+    })
+  expect(() => sameOrigin(proxied('https://supabase.example'))).not.toThrow()
+  expect(() => sameOrigin(proxied('https://importer.example'))).not.toThrow()
+  expect(() => sameOrigin(proxied('https://other.example'))).toThrow(HttpError)
 })
 
 const sdk = vi.hoisted(() => ({ getRun: vi.fn(), list: vi.fn(), run: vi.fn(), key: vi.fn() }))

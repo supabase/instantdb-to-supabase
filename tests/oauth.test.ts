@@ -19,7 +19,10 @@ afterEach(() => {
 const configure = () => {
   vi.stubEnv('IMPORT_OAUTH_CLIENT_ID', 'client-id')
   vi.stubEnv('IMPORT_OAUTH_CLIENT_SECRET', 'client-secret')
-  vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', 'http://localhost:3009/api/supabase/callback')
+  vi.stubEnv(
+    'IMPORT_OAUTH_REDIRECT_URI',
+    'http://localhost:3009/migrate/instantdb/api/supabase/callback'
+  )
 }
 describe('Supabase platform OAuth', () => {
   it('uses S256 PKCE, random state, and an exact configured callback', () => {
@@ -37,10 +40,11 @@ describe('Supabase platform OAuth', () => {
     expect(flow.state).not.toBe(buildAuthorization().state)
   })
   it.each([
-    'http://example.com/api/supabase/callback',
-    'http://127.0.0.1:3009/api/supabase/callback',
+    'http://example.com/migrate/instantdb/api/supabase/callback',
+    'http://127.0.0.1:3009/migrate/instantdb/api/supabase/callback',
     'https://example.com/wrong-path',
-    'https://example.com/api/supabase/callback?next=https://evil.example',
+    'https://example.com/api/supabase/callback',
+    'https://example.com/migrate/instantdb/api/supabase/callback?next=https://evil.example',
   ])('rejects an unsafe callback %s', (uri) => {
     configure()
     vi.stubEnv('IMPORT_OAUTH_REDIRECT_URI', uri)

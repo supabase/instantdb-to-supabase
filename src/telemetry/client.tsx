@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 
+import { basePath } from '../base-path'
 import { browserEventSchema, type BrowserEvent, type EventMap } from './contracts'
 
 let queue = Promise.resolve()
@@ -21,7 +22,7 @@ function send(value: BrowserEvent) {
     queued++
     queue = queue.then(async () => {
       try {
-        await fetch('/api/telemetry', {
+        await fetch(`${basePath}/api/telemetry`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(value),

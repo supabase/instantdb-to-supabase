@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
+import { basePath } from './src/base-path'
+
 const baseURL = process.env.IMPORT_WORKFLOW_TEST_URL || 'http://127.0.0.1:3009'
 
 export default defineConfig({
@@ -11,5 +13,5 @@ export default defineConfig({
   use: { baseURL, headless: true },
   webServer: process.env.IMPORT_WORKFLOW_TEST_URL
     ? undefined
-    : { command: 'pnpm start', url: `${baseURL}/api/health`, reuseExistingServer: true },
+    : { command: 'pnpm start', url: `${baseURL}${basePath}/api/health`, reuseExistingServer: true },
 })

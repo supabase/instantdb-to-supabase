@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 import { TooltipProvider } from 'ui'
 import { ThemeToggle } from 'ui-patterns/ThemeToggle'
 
+import { basePath } from '../base-path'
+
 export function ImportShell({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider delayDuration={200}>
@@ -16,14 +18,14 @@ export function ImportShell({ children }: { children: ReactNode }) {
         <header className="border-b bg-surface-100/60">
           <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-6 xl:px-10">
             <a
-              href="/"
+              href={basePath}
               aria-label="InstantDB to Supabase migration home"
               className="flex items-center gap-2 text-sm font-medium tracking-tight text-foreground focus-visible:outline-brand"
             >
               <span>InstantDB</span>
               <ArrowRight size={14} className="text-foreground-lighter" aria-hidden />
               <Image
-                src="/supabase-logo.svg"
+                src={`${basePath}/supabase-logo.svg`}
                 alt=""
                 width={18}
                 height={20}

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { basePath } from '../src/base-path'
 import type { Handoff } from '../src/import/handoff'
 import { mockSupabaseConnection, projectRef } from './oauth-fixtures'
 
@@ -78,7 +79,7 @@ for (const deleted of [false, true]) {
     await page.route(`**/api/browser-imports/${jobId}/handoff`, (route) =>
       route.fulfill({ json: { ...handoff, backupDeleted: deleted } })
     )
-    await page.goto(`/?job=${jobId}`)
+    await page.goto(`${basePath}?job=${jobId}`)
     await expect(
       page.getByText('Every record and link was verified', { exact: false })
     ).toBeVisible()
@@ -127,7 +128,7 @@ test('shows converted policy warnings and provides a review prompt', async ({ pa
       },
     })
   )
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await page.getByText('Applied access policies · 1', { exact: true }).click()
   await expect(page.getByText('Applied · review access below', { exact: true })).toBeVisible()
   await page.getByText('people · view', { exact: true }).click()
@@ -149,7 +150,7 @@ test('explains remaining work and shows applied policies separately from preserv
       json: { expression: 'false', source: '$default.allow.$default', bindings: {} },
     })
   })
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await expect(page.getByRole('heading', { name: 'Imported automatically' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Still needs your attention' })).toBeVisible()
   await expect(page.getByText(/No access was granted for unconverted operations/)).toBeVisible()
@@ -173,7 +174,7 @@ test('does not call legacy unapplied rules imported policies', async ({ page }) 
   await page.route(`**/api/browser-imports/${jobId}/handoff`, (route) =>
     route.fulfill({ json: { ...handoff, permissionsApplied: false } })
   )
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await expect(page.getByText(/This earlier import has unapplied security rules/)).toBeVisible()
   await expect(page.getByText('Applied access policies · 1', { exact: true })).toHaveCount(0)
 })
@@ -197,7 +198,7 @@ test('compares the source rule with applied SQL and copies its supporting statem
       },
     })
   )
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await page.getByText('Applied access policies · 1', { exact: true }).click()
   await page.getByText('people · view', { exact: true }).click()
   await expect(page.getByLabel('Source rule for people · view')).toHaveText('true')
@@ -215,7 +216,7 @@ test('replaces completed progress and downloads with project links and CLI instr
   context,
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await expect(page.getByRole('heading', { name: 'Import complete', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Import progress' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /download/i })).toHaveCount(0)
@@ -246,7 +247,7 @@ test('loads prompts on demand and copies the full context', async ({ page, conte
     requests++
     return route.fulfill({ json: { prompt } })
   })
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   const item = handoff.items[0]
   await page.getByText('Policies and relationships · 1', { exact: true }).click()
   await expect(page.getByText(item.title, { exact: true })).toBeVisible()
@@ -278,7 +279,7 @@ test('lets the user recover from a prompt failure', async ({ page }) => {
         : { json: { prompt: 'Recovered prompt' } }
     )
   )
-  await page.goto(`/?job=${jobId}`)
+  await page.goto(`${basePath}?job=${jobId}`)
   await page.getByText('Policies and relationships · 1', { exact: true }).click()
   await page.getByText(handoff.items[0].title, { exact: true }).click()
   await page.getByRole('button', { name: 'Retry prompt' }).click()

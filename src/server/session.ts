@@ -3,6 +3,7 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
+import { basePath } from '../base-path'
 import { PlatformRetryError } from '../platform-retry'
 import { oauthConfig } from './oauth-client'
 
@@ -39,7 +40,7 @@ export function session(request: Request, create = false) {
   const token = randomBytes(32).toString('base64url')
   return {
     hash: digest(token),
-    cookie: `instant-import-session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${secure(request) ? '; Secure' : ''}`,
+    cookie: `instant-import-session=${token}; Path=${basePath}; HttpOnly; SameSite=Strict; Max-Age=2592000${secure(request) ? '; Secure' : ''}`,
   }
 }
 /** Endpoints that create work cannot mint a session: the OAuth connection is bound to one. */
@@ -48,13 +49,21 @@ export function connectedSession(request: Request) {
   if (!value) throw new HttpError(401, 'Connect Supabase before starting an import')
   return { hash: digest(value) }
 }
+function canonicalHost() {
+  try {
+    return new URL(oauthConfig().redirectUri).host
+  } catch {
+    return null
+  }
+}
 export function sameOrigin(request: Request) {
   const origin = request.headers.get('origin')
   const host = request.headers.get('host') ?? new URL(request.url).host
+  // Behind the supabase.com rewrite, Host names this deployment, not the page's origin.
   if (
     !origin ||
     !['http:', 'https:'].includes(new URL(origin).protocol) ||
-    new URL(origin).host !== host
+    ![host, canonicalHost()].includes(new URL(origin).host)
   )
     throw new HttpError(403, 'Open the importer in this browser and try again')
 }
