@@ -1,17 +1,13 @@
 import type { Client } from 'pg'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { POST } from '../app/api/telemetry/route'
-import { captureJobProgress, eventId, telemetryId } from '../src/telemetry/server'
+import { browserEventSchema } from '../src/telemetry/contracts'
+import { capture, captureJobProgress, eventId, requestTelemetryId } from '../src/telemetry/server'
 
 const id = '00000000-0000-4000-8000-000000000001'
 const fetcher = vi.fn()
-const request = (value: unknown, headers: Record<string, string> = {}) =>
-  new Request('https://import.example/api/telemetry?secret=private', {
-    method: 'POST',
-    headers: { origin: 'https://import.example', ...headers },
-    body: JSON.stringify(value),
-  })
+const request = (headers: Record<string, string> = {}) =>
+  new Request('https://import.example/api/supabase/connect', { method: 'POST', headers })
 const event = { action: 'instant_import_control_clicked', properties: { importAction: 'retry' } }
 beforeEach(() => {
   vi.stubEnv('VERCEL_ENV', 'production')
@@ -27,71 +23,59 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 describe('import telemetry boundary', () => {
-  it('sends anonymous events without request context or credentials', async () => {
-    const result = await POST(
-      request(event, {
-        cookie: `instant-import-analytics=${id}; instant-import-session=secret`,
-        referer: 'https://private.example',
-        'x-forwarded-for': '1.2.3.4',
-      })
-    )
-    expect(result.status).toBe(204)
+  it('sends anonymous server events without person profiles or GeoIP', async () => {
+    expect(
+      await capture(id, 'instant_import_connection_completed', { connectionResult: 'connected' })
+    ).toBe(true)
     const [url, init] = fetcher.mock.calls[0]
     expect(url).toBe('https://eu.i.posthog.com/i/v0/e/')
     expect(JSON.parse(init.body)).toMatchObject({
       distinct_id: id,
-      event: event.action,
+      event: 'instant_import_connection_completed',
       properties: {
-        importAction: 'retry',
+        connectionResult: 'connected',
         app: 'instant-import',
         $process_person_profile: false,
         $geoip_disable: true,
       },
     })
-    for (const secret of ['private.example', '1.2.3.4', 'secret', 'instant-import-session'])
-      expect(init.body).not.toContain(secret)
-    expect(result.headers.get('set-cookie')).toBeNull()
   })
-  it('creates an independent anonymous cookie and a sanitized standard pageview', async () => {
-    const result = await POST(request({ action: '$pageview', properties: {} }))
-    expect(result.headers.get('set-cookie')).toMatch(
-      /instant-import-analytics=.*HttpOnly; SameSite=Lax.*Secure/
-    )
-    expect(JSON.parse(fetcher.mock.calls[0][1].body).properties.$pathname).toBe('/')
+  it('accepts a carried browser ID only as a UUID', () => {
+    expect(requestTelemetryId(request(), { telemetryId: id })).toBe(id)
+    const posthogId = '01a15b09-4124-714f-9c78-be4057437a10'
+    expect(requestTelemetryId(request(), { telemetryId: posthogId })).toBe(posthogId)
+    for (const body of [null, {}, { telemetryId: 'x' }, { telemetryId: 42 }])
+      expect(requestTelemetryId(request(), body)).toBeNull()
+  })
+  it.each(['dnt', 'sec-gpc'])('honors %s', (header) => {
+    expect(requestTelemetryId(request({ [header]: '1' }), { telemetryId: id })).toBeNull()
   })
   it.each(['email', 'fileName', 'sql', 'prompt', '$current_url', 'projectRef', 'error'])(
-    'rejects unexpected %s properties',
-    async (field) => {
+    'rejects unexpected %s properties passed to track',
+    (field) => {
       expect(
-        (
-          await POST(
-            request({ ...event, properties: { importAction: 'retry', [field]: 'private' } })
-          )
-        ).status
-      ).toBe(400)
-      expect(fetcher).not.toHaveBeenCalled()
+        browserEventSchema.safeParse({
+          ...event,
+          properties: { importAction: 'retry', [field]: 'private' },
+        }).success
+      ).toBe(false)
     }
   )
   it.each(['something_viewed', 'instant_import_completed', 'instant_import_stage_updated'])(
-    'rejects client-forged %s',
-    async (action) => {
-      expect((await POST(request({ action, properties: {} }))).status).toBe(400)
-      expect(fetcher).not.toHaveBeenCalled()
+    'rejects browser-forged %s',
+    (action) => {
+      expect(browserEventSchema.safeParse({ action, properties: {} }).success).toBe(false)
     }
   )
-  it.each(['dnt', 'sec-gpc'])('captures despite %s', async (header) => {
-    const req = request(event, { [header]: '1', cookie: `instant-import-analytics=${id}` })
-    expect(telemetryId(req)).toBe(id)
-    expect((await POST(req)).status).toBe(204)
-    expect(fetcher).toHaveBeenCalledOnce()
-    expect(JSON.parse(fetcher.mock.calls[0][1].body).distinct_id).toBe(id)
-  })
   it.each(['', 'preview', 'development'])(
     'is disabled outside production (%s)',
     async (environment) => {
       vi.stubEnv('VERCEL_ENV', environment)
       vi.stubEnv('IMPORT_TELEMETRY_DEV', '')
-      expect((await POST(request(event))).headers.get('set-cookie')).toBeNull()
+      expect(requestTelemetryId(request(), { telemetryId: id })).toBeNull()
+      expect(await capture(id, 'instant_import_control_clicked', { importAction: 'retry' })).toBe(
+        false
+      )
       expect(fetcher).not.toHaveBeenCalled()
     }
   )
@@ -102,17 +86,14 @@ describe('import telemetry boundary', () => {
     'https://example.com?token=secret',
   ])('fails closed for missing or invalid hosts (%s)', async (host) => {
     vi.stubEnv('IMPORT_POSTHOG_HOST', host)
-    await POST(request(event))
+    await capture(id, 'instant_import_control_clicked', { importAction: 'retry' })
     expect(fetcher).not.toHaveBeenCalled()
   })
-  it('rejects cross-origin and oversized payloads', async () => {
-    expect((await POST(request(event, { origin: 'https://evil.example' }))).status).toBe(400)
-    expect((await POST(request({ action: 'a'.repeat(3000) }))).status).toBe(400)
-    expect(fetcher).not.toHaveBeenCalled()
-  })
-  it('never rejects user actions for analytics delivery failures', async () => {
+  it('never throws on analytics delivery failures', async () => {
     fetcher.mockRejectedValue(new Error('network error containing credentials'))
-    expect((await POST(request(event))).status).toBe(204)
+    expect(await capture(id, 'instant_import_control_clicked', { importAction: 'retry' })).toBe(
+      false
+    )
   })
 })
 describe('background import funnel', () => {
