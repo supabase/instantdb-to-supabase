@@ -9,3 +9,7 @@ pnpm-lock.yaml
 next-env.d.ts
 vendor
 LICENSE
+supabase/migrations
+supabase/tests
+supabase/.temp
+supabase/.branches

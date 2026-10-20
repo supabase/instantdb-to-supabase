@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { basePath } from '../base-path'
 import { progressStageSchema, type BrowserEvent, type EventMap } from './contracts'
 import type { InstantImportProgressEvent } from './events'
+import { completionStatsSchema, recordUsage, usageEnabled } from './usage'
 
 const cookieName = 'instant-import-analytics'
 export function telemetryConfig() {
@@ -27,12 +28,7 @@ export function telemetryConfig() {
   }
 }
 export function telemetryId(request: Request) {
-  if (
-    !telemetryConfig() ||
-    request.headers.get('dnt') === '1' ||
-    request.headers.get('sec-gpc') === '1'
-  )
-    return null
+  if (!telemetryConfig()) return null
   const value = request.headers
     .get('cookie')
     ?.split(';')
@@ -90,12 +86,8 @@ export async function capture<A extends keyof EventMap | '$pageview'>(
   }
 }
 export async function captureBrowserEvent(request: Request, value: BrowserEvent) {
-  if (
-    !telemetryConfig() ||
-    request.headers.get('dnt') === '1' ||
-    request.headers.get('sec-gpc') === '1'
-  )
-    return new Response(null, { status: 204 })
+  // Consent is managed by the host site; browser privacy headers do not gate capture here.
+  if (!telemetryConfig()) return new Response(null, { status: 204 })
   const existing = telemetryId(request),
     id = existing ?? randomUUID()
   await capture(id, value.action, value.properties)
@@ -106,22 +98,34 @@ export async function captureBrowserEvent(request: Request, value: BrowserEvent)
 }
 /** Called from committed worker transitions, not from browser polling. */
 export async function captureJobProgress(db: Client, jobId: string, phase: string, failed = false) {
-  if (!telemetryConfig() || !progressStageSchema.safeParse(phase).success) return
+  if (!progressStageSchema.safeParse(phase).success || (!usageEnabled() && !telemetryConfig()))
+    return
   try {
+    // CLI jobs have no browser row: they reach the usage log but never PostHog.
     const row = (
       await db.query(
-        safeSql`SELECT telemetry_id,extract(epoch FROM (now()-created_at))*1000 AS elapsed_ms FROM instant_import_service.browser_jobs WHERE job_id=$1`,
+        safeSql`SELECT b.telemetry_id,j.error_code,extract(epoch FROM (now()-coalesce(b.created_at,j.created_at)))*1000 AS elapsed_ms FROM instant_import_service.jobs j LEFT JOIN instant_import_service.browser_jobs b ON b.job_id=j.id WHERE j.id=$1`,
         [jobId]
       )
     ).rows[0]
-    if (!row?.telemetry_id) return
-    if (phase === 'analyzing' && !failed)
+    if (!row) return
+    if (phase === 'analyzing' && !failed) {
+      const uploadId = eventId(`${jobId}:upload`)
+      const stats = await uploadStats(db, jobId)
+      if (stats)
+        await recordUsage(
+          db,
+          { action: 'instant_import_upload_completed', properties: stats },
+          { jobId },
+          uploadId
+        )
       await capture(
-        row.telemetry_id,
+        row.telemetry_id ?? null,
         'instant_import_upload_completed',
         { importAction: 'upload' },
-        eventId(`${jobId}:upload`)
+        uploadId
       )
+    }
     const action: InstantImportProgressEvent['action'] =
       failed || phase === 'blocked'
         ? 'instant_import_failed'
@@ -130,17 +134,62 @@ export async function captureJobProgress(db: Client, jobId: string, phase: strin
           : phase === 'cancelled'
             ? 'instant_import_closed'
             : 'instant_import_stage_updated'
-    await capture(
-      row.telemetry_id,
-      action,
-      {
-        jobId,
-        importStage: phase as InstantImportProgressEvent['properties']['importStage'],
-        elapsedMs: Math.max(0, Math.round(Number(row.elapsed_ms) || 0)),
-      },
-      eventId(`${jobId}:${action}:${phase}`)
+    const importStage = phase as InstantImportProgressEvent['properties']['importStage'],
+      elapsedMs = Math.max(0, Math.round(Number(row.elapsed_ms) || 0)),
+      id = eventId(`${jobId}:${action}:${phase}`),
+      // A fixed code set by this pipeline, never a driver or step message.
+      errorCode =
+        failed && ['STEP_FAILED', 'RUN_FAILED'].includes(row.error_code)
+          ? row.error_code
+          : undefined
+    await recordUsage(
+      db,
+      action === 'instant_import_completed'
+        ? {
+            action,
+            properties: { importStage, elapsedMs, stats: await completionStats(db, jobId) },
+          }
+        : { action, properties: { importStage, elapsedMs, ...(errorCode ? { errorCode } : {}) } },
+      { jobId },
+      id
     )
+    await capture(row.telemetry_id ?? null, action, { jobId, importStage, elapsedMs }, id)
   } catch {
     /* Older jobs and analytics outages must not affect migration work. */
+  }
+}
+async function uploadStats(db: Client, jobId: string) {
+  if (!usageEnabled()) return undefined
+  try {
+    const row = (
+      await db.query(
+        safeSql`SELECT count(*) AS files,coalesce(sum(size),0) AS bytes,count(*) FILTER(WHERE kind='entity') AS entities,count(*) FILTER(WHERE kind='blob') AS blobs FROM instant_import_service.files WHERE job_id=$1`,
+        [jobId]
+      )
+    ).rows[0]
+    return {
+      fileCount: Number(row?.files ?? 0),
+      totalBytes: Number(row?.bytes ?? 0),
+      entityFiles: Number(row?.entities ?? 0),
+      blobFiles: Number(row?.blobs ?? 0),
+    }
+  } catch {
+    return undefined
+  }
+}
+/** Aggregate totals from the retained verification report; omitted if it is unavailable. */
+async function completionStats(db: Client, jobId: string) {
+  if (!usageEnabled()) return undefined
+  try {
+    const row = (
+      await db.query(
+        safeSql`SELECT v->'verified' AS verified,v->'sourceTotals' AS source,v->'permissions' AS permissions FROM (SELECT convert_from(bytes,'UTF8')::jsonb AS v FROM instant_import_service.artifacts WHERE job_id=$1 AND name='verification.json') a`,
+        [jobId]
+      )
+    ).rows[0]
+    const stats = completionStatsSchema.safeParse(row)
+    return stats.success ? stats.data : undefined
+  } catch {
+    return undefined
   }
 }

@@ -6,7 +6,8 @@ import { PlatformRetryError } from '../src/platform-retry'
 import { decryptSecret, encryptSecret } from '../src/server/credentials'
 import { resolveOAuthTarget } from '../src/server/oauth'
 import { platformFetch, platformScope } from '../src/server/platform-api'
-import { connectStore, initializeStore } from '../src/workflow/store'
+import { ensureStore } from '../src/server/store-ready'
+import { connectStore } from '../src/workflow/store'
 
 const url = process.env.IMPORT_JOB_DATABASE_URL
 if (url && !['localhost', '127.0.0.1'].includes(new URL(url).hostname))
@@ -16,7 +17,7 @@ describe.skipIf(!url)('durable OAuth credential leases', () => {
   const ref = 'a'.repeat(20)
   beforeAll(async () => {
     db = await connectStore()
-    await initializeStore(db)
+    await ensureStore(db)
   })
   afterAll(async () => {
     await db?.end()
@@ -196,7 +197,7 @@ describe.skipIf(!url)('shared Management API cooldowns', () => {
   let clientId: string
   beforeAll(async () => {
     db = await connectStore()
-    await initializeStore(db)
+    await ensureStore(db)
   })
   afterAll(async () => {
     await db?.end()

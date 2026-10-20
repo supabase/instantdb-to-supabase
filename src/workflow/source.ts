@@ -4,11 +4,13 @@ import type { RangeSource } from './batches'
 import type { SourceFile } from './store'
 
 export type SourceConfig = { url: string; key: string; bucket: string }
+/** Created and kept private by supabase/migrations; the app never creates it. */
+export const sourceBucket = 'instant-import-inputs'
 export const sourceConfig = (): SourceConfig => {
   const url = process.env.IMPORT_JOB_SUPABASE_URL,
     key = process.env.IMPORT_JOB_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Configure service-owned Storage credentials')
-  return { url, key, bucket: 'instant-import-inputs' }
+  return { url, key, bucket: sourceBucket }
 }
 
 /** Exact manifest keys only: never a bucket-wide or prefix deletion. Missing objects are safe. */

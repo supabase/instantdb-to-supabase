@@ -21,7 +21,7 @@ This repository is independent of the Supabase monorepo. The four packages under
 
 Register a Supabase platform OAuth application with `http://localhost:3009/migrate/instantdb/api/supabase/callback` for local development and your deployment's HTTPS callback for production. Configure `IMPORT_OAUTH_CLIENT_ID`, `IMPORT_OAUTH_CLIENT_SECRET`, and `IMPORT_OAUTH_REDIRECT_URI` from that application. The importer requests its required scopes when connecting; approve access only to the projects you intend to migrate into.
 
-The three `IMPORT_JOB_*` settings point to a separate private service project, not the destination. Set `IMPORT_CREDENTIAL_KEY` to a stable base64-encoded 32-byte secret. Existing service data requires its original key; do not generate a replacement when moving or redeploying this app. All credentials remain server-only. Optional PostHog settings are documented at the end of this file.
+The three `IMPORT_JOB_*` settings point to a separate private service project, not the destination. This repository's `supabase/` folder is that service project: `supabase/migrations` is the only source of its schema, and the app never creates tables at runtime. For local development, run `supabase start` in the repository root (it applies the migrations on ports 553xx, clear of a destination on the default 543xx ports) and copy `DB_URL`, `API_URL`, and the service-role key from `supabase status` into the `IMPORT_JOB_*` settings. Set `IMPORT_CREDENTIAL_KEY` to a stable base64-encoded 32-byte secret. Existing service data requires its original key; do not generate a replacement when moving or redeploying this app. All credentials remain server-only. Optional PostHog settings are documented at the end of this file.
 
 ## Browser import
 
@@ -47,9 +47,16 @@ Run `pnpm test:browser` against a running importer and a **disposable blank loca
 
 Deploy this repository root, including `vendor/` and `public/fonts/`, using Node.js 24, `pnpm install --frozen-lockfile`, and `pnpm build`. Keep local environment files, workflow data, backups, and context reports out of deployment uploads.
 
-Configure all seven variables in `.env.example` for production. Use a hosted private service project and a direct or session database connection; hosted Supabase connections verify the server certificate against the bundled Supabase CA. The database login needs to own the private service schema and be able to create it. Store credentials as sensitive Vercel environment variables, and keep the encryption key stable across deployments.
+Configure all seven variables in `.env.example` for production. Use a hosted private service project and a direct or session database connection; hosted Supabase connections verify the server certificate against the bundled Supabase CA. Apply the service schema before deploying the app, and again whenever `supabase/migrations` changes:
 
-Register the production HTTPS `/migrate/instantdb/api/supabase/callback` URL in the OAuth application and use that exact URL for `IMPORT_OAUTH_REDIRECT_URI`. In production that is `https://supabase.com/migrate/instantdb/api/supabase/callback`: supabase.com proxies `/migrate/instantdb/*` to this deployment, and the bare deployment root redirects there. Set the private service project's Storage file-size limit to accommodate your largest input file; the default 50 MB is too small for large backups. The upload bucket must remain private.
+```sh
+supabase link --project-ref SERVICE_PROJECT_REF
+supabase db push
+```
+
+The baseline migration is idempotent, so `db push` is safe on a service project that an earlier version of the app initialized at runtime. Until the migrations are applied, requests fail with a 503 and the server log names the missing step. The database login needs ordinary read/write access to the service tables. Store credentials as sensitive Vercel environment variables, and keep the encryption key stable across deployments.
+
+Register the production HTTPS `/migrate/instantdb/api/supabase/callback` URL in the OAuth application and use that exact URL for `IMPORT_OAUTH_REDIRECT_URI`. In production that is `https://supabase.com/migrate/instantdb/api/supabase/callback`: supabase.com proxies `/migrate/instantdb/*` to this deployment, and the bare deployment root redirects there. Set the private service project's Storage file-size limit to accommodate your largest input file; the default 50 MB is too small for large backups (the local `supabase/config.toml` uses 50 GiB). The private `instant-import-inputs` upload bucket is created by `supabase/migrations` and has no bucket-level size limit, so it inherits the project limit; the app only checks that it exists and is private, and refuses uploads otherwise.
 
 Use this repository root as the Vercel project's Root Directory and `pnpm build` as its Build Command. `vercel.json` pins the Install Command to `pnpm install --frozen-lockfile` and selects Singapore; keep functions near the service database. Workflow uses Vercel's managed runtime automatically; do not deploy the local `WORKFLOW_TARGET_WORLD` or `WORKFLOW_LOCAL_DATA_DIR` overrides. After deployment, verify `/migrate/instantdb/api/health`, the OAuth round trip, and signed resumable uploads.
 
@@ -221,7 +228,10 @@ pnpm lint
 pnpm format
 pnpm test:prettier
 pnpm build
+pnpm test:db
 ```
+
+`pnpm test:db` runs the pgTAP suites in `supabase/tests/database` against the local service project (`supabase start` in the repository root). They check that the service schema, `public.usage_events`, and the upload bucket exist, that every `instant_import_service` and `public` table has RLS enabled with no policies, and that `anon` and `authenticated` can neither read nor write them or uploaded backups. The RLS and privilege checks scan the catalog, so a table added by a later migration is covered automatically.
 
 For integration tests, initialize a **separate disposable** local Supabase project with the CLI. Enable Auth and Storage; the repository's existing project is not used. Export `IMPORT_TEST_DATABASE_URL`, `IMPORT_TEST_SUPABASE_URL`, and `IMPORT_TEST_SERVICE_ROLE_KEY` from that project's `supabase status --output json`. Tests require localhost URLs, fail when configuration is absent, and remove only resources they created.
 
@@ -242,7 +252,7 @@ Model version 3 maps platform namespaces to native services and excludes Realtim
 
 ### Workflow validation
 
-Workflow integration tests additionally require a second disposable local Supabase project and the three `IMPORT_JOB_*` variables above. The tests initialize private staging themselves and configure a `test` destination reference. For the actual HTTP runtime test, start the Next app with `IMPORT_TARGETS_JSON` pointing `test` at the same disposable destination, set `IMPORT_WORKFLOW_TOKEN=local-workflow-test-token` only in that isolated test environment, and pass `IMPORT_WORKFLOW_TEST_URL` to Vitest. The CI workflow runs both projects and this runtime test. The supplied backup remains optional and is never checked in.
+Workflow integration tests additionally require a second disposable local Supabase project and the three `IMPORT_JOB_*` variables above. Start the service project with `supabase start` in the repository root so its migrations are applied; the tests check that schema and configure a `test` destination reference. For the actual HTTP runtime test, start the Next app with `IMPORT_TARGETS_JSON` pointing `test` at the same disposable destination, set `IMPORT_WORKFLOW_TOKEN=local-workflow-test-token` only in that isolated test environment, and pass `IMPORT_WORKFLOW_TEST_URL` to Vitest. The CI workflow runs both projects and this runtime test. The supplied backup remains optional and is never checked in.
 
 Coverage includes byte and row limits, offsets beyond 4 GiB, SHA-256 continuation, UTF-8/CRLF boundaries, truncated/changed range responses, expired upload URLs, upload acknowledgment offsets, cross-batch duplicate IDs and relationships, empty/shared/multi-chunk files, native identities, receipt replay, cancellation, schema drift, staging privacy, workflow continuation, and simultaneous HTTP starts. The new Workflow destination ledger is version 4 and is intentionally separate from existing version 3 CLI restores. Existing imported projects are not upgraded implicitly. The retained development example was updated with an explicit, data-verified simplification migration.
 
@@ -252,7 +262,7 @@ Tracking is disabled until `IMPORT_POSTHOG_KEY` (a PostHog project token, not a 
 
 Events follow Studio's telemetry naming and typed interfaces in `src/telemetry/events.ts`. The importer has its own `useTrack` adapter and same-origin capture endpoint because Studio's adapter depends on dashboard authentication and routing. The endpoint sends only validated properties through the [PostHog capture API](https://posthog.com/docs/api/capture); it does not load browser autocapture, session replay, or error recording.
 
-The app uses a separate random, HttpOnly analytics cookie, valid for 30 days, to join pageviews, actions, and worker outcomes. It never identifies Supabase accounts or sends project references, organization names, IP addresses, referrers, URL queries, filenames, backup contents, connection strings, SQL, prompts, or raw errors. Person-profile processing and GeoIP enrichment are disabled. Do Not Track and Global Privacy Control suppress browser telemetry; requests with either signal do not attach an analytics identity to new jobs. An existing job retains the preference captured when it was created. No analytics cookie is created while tracking is disabled.
+The app uses a separate random, HttpOnly analytics cookie, valid for 30 days, to join pageviews, actions, and worker outcomes. It never identifies Supabase accounts or sends project references, organization names, IP addresses, referrers, URL queries, filenames, backup contents, connection strings, SQL, prompts, or raw errors. Person-profile processing and GeoIP enrichment are disabled. Consent is managed by the host site, so this app does not add its own banner or gate capture on Do Not Track or Global Privacy Control. No analytics cookie is created while PostHog is not configured.
 
 The private service schema adds a nullable `browser_jobs.telemetry_id` column on its next initialization check. No destination schema changes are needed. Worker events use the saved anonymous identity, so progress and outcomes remain measurable after the browser closes. Jobs created before tracking is enabled have no analytics identity and are not retrospectively identified.
 
@@ -271,5 +281,19 @@ Suggested PostHog insights (filter all of them by `app = instant-import`):
 Upload completion is emitted after the server freezes the backup. Stages and terminal outcomes come from committed worker transitions, never from page renders or repeated progress polls. Stable event UUIDs deduplicate repeated outcomes on Workflow retries. Repeated explicit clicks and submissions are separate attempts; use unique visitors for the acquisition funnel and unique `jobId` for job outcomes. Folder selection and connection can happen in either order; omit or reorder those steps when exploring alternate paths.
 
 Delivery is best effort with a 1.5-second timeout and no analytics-driven import retries. An analytics outage, blocked request, closed tab before browser delivery, or process crash can undercount events; the job database remains the source of truth. No per-record, per-file, or per-batch analytics events are emitted, so event volume stays bounded for multi-GB imports. Handoff events measure interaction with instructions, not whether the customer has completed their application migration.
+
+### First-party usage log
+
+Content blockers can drop the `/migrate/instantdb/api/telemetry` endpoint, and PostHog can be unconfigured or unavailable. As a backup, the app also appends events to `public.usage_events` in the private service project. It is on by default in every environment (rows carry `environment` from `VERCEL_ENV`, so filter by `environment = 'production'`); set `IMPORT_USAGE_LOG=0` to disable it. It is created by `supabase/migrations`, is insert-only from the server, has row level security enabled with no policies, and is revoked from `anon` and `authenticated`, so the Data API cannot reach it even though it is in `public`. Only the service connection or the dashboard can read it.
+
+It records no identifier for a person or browser: no analytics cookie, session, IP address, user agent, referrer, or URL. Browser events use the same validated payloads as PostHog and arrive through a same-origin Server Action. Server events add the destination project ref (on job creation and inherited by that job's later rows), backup file counts and bytes at upload completion, stage, elapsed time, fixed failure codes, and on completion the verified and source totals and permission summary counts from `verification.json`. Rows have no foreign key, so they outlive job cleanup. Stable IDs deduplicate Workflow retries.
+
+| Column        | Contents                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `event`       | Event name, matching the PostHog event plus `instant_import_job_created` and `instant_import_preflight_failed` |
+| `job_id`      | Import job, for server events                                                                                  |
+| `target_ref`  | Destination project ref, when known                                                                            |
+| `environment` | `production`, `preview`, or `development`                                                                      |
+| `properties`  | Validated counts and enums                                                                                     |
 
 Successful-import cleanup applies to jobs that reach cleanup on this version. It does not retroactively purge completed jobs or set an expiry for abandoned uploads. Deletion removes live Storage objects and database rows; provider-managed database backups follow the service project’s own retention policy. Signed upload capabilities are path-scoped and short-lived; they never grant read access. Do not add client Storage policies to the private service project.

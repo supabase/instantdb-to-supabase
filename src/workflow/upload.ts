@@ -3,20 +3,13 @@ import { constants } from 'node:fs'
 import { lstat, open, readdir, realpath } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { safeSql } from '@supabase/pg-meta'
-import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 import { validatePath } from '../import/input'
 import { analyzeMetadata } from '../import/plan'
+import { ensureSourceBucket, ensureStore } from '../server/store-ready'
 import { ensureEmptySource, sourceConfig } from './source'
-import {
-  connectStore,
-  createJob,
-  getJob,
-  initializeStore,
-  packPlan,
-  type SourceFile,
-} from './store'
+import { connectStore, createJob, getJob, packPlan, type SourceFile } from './store'
 import { resolveTarget } from './target'
 import { createUpload, uploadChunk, uploadChunkBytes, uploadOffset } from './tus'
 
@@ -67,11 +60,10 @@ export async function uploadFolder(
   }
   // Resolve configuration before connecting: a throw between the two would leak the connection.
   const model = analyzeMetadata(config),
-    storage = sourceConfig(),
-    api = createClient(storage.url, storage.key, { auth: { persistSession: false } })
+    storage = sourceConfig()
   const db = await connectStore()
   try {
-    await initializeStore(db)
+    await ensureStore(db)
     const id = resumeId ?? (await createJob(db, targetRef, config))
     onRegistered?.(id)
     const job = await getJob(db, id)
@@ -86,11 +78,7 @@ export async function uploadFolder(
       ).rows[0].acquired
     )
       throw new Error('Another worker owns this upload')
-    const bucket = await api.storage.getBucket(storage.bucket)
-    if (bucket.error) {
-      const result = await api.storage.createBucket(storage.bucket, { public: false })
-      if (result.error) throw new Error('Source bucket creation failed')
-    } else if (bucket.data.public) throw new Error('Source bucket must be private')
+    await ensureSourceBucket(db)
     for (const path of paths.sort()) {
       const entity = /^entities\/([^/]+)\.jsonl$/.exec(path),
         blob = /^files\/([^/]+)$/.exec(path)
