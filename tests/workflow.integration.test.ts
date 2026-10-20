@@ -15,6 +15,8 @@ import { readBackupFolder } from '../src/import/input'
 import { analyze } from '../src/import/plan'
 import { publicTables } from '../src/import/relational'
 import { ensureStore } from '../src/server/store-ready'
+import { captureJobProgress, eventId } from '../src/telemetry/server'
+import { recordUsage } from '../src/telemetry/usage'
 import { cleanupBackup } from '../src/workflow/cleanup'
 import { executeImportStep } from '../src/workflow/engine'
 import { rowPage } from '../src/workflow/staging'
@@ -124,6 +126,7 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
           [jobId]
         )
       await service.query('DELETE FROM instant_import_service.jobs WHERE id=$1', [jobId])
+      await service.query('DELETE FROM public.usage_events WHERE job_id=$1', [jobId])
       jobId = undefined
     }
     for (const path of folders.splice(0)) await rm(path, { recursive: true, force: true })
@@ -240,6 +243,70 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
     expect(migrationText).not.toMatch(
       /CREATE SCHEMA instant_|CREATE FUNCTION|workflow_batches|provenance/
     )
+  })
+  it('appends one deduplicated usage row per job milestone, with stats and no identifiers', async () => {
+    const ref = 'abcdefghijklmnopqrst'
+    await upload()
+    // The browser routes record job creation and upload completion; mirror them, including a
+    // retried upload acknowledgement, then let the engine record every committed transition.
+    await recordUsage(
+      service,
+      { action: 'instant_import_job_created', properties: { fileCount: entries().size } },
+      { jobId, targetRef: ref },
+      eventId(`${jobId}:created`)
+    )
+    await captureJobProgress(service, jobId!, 'analyzing')
+    await captureJobProgress(service, jobId!, 'analyzing')
+    expect((await finish()).state).toBe('completed')
+    expect((await step()).state).toBe('completed')
+    const rows = (
+      await service.query(
+        'SELECT event,target_ref,environment,properties FROM public.usage_events WHERE job_id=$1 ORDER BY occurred_at,event',
+        [jobId]
+      )
+    ).rows
+    expect(rows.every((r) => r.target_ref === ref && r.environment === 'development')).toBe(true)
+    const keys = (event: string) => [
+      ...new Set(
+        rows.filter((r) => r.event === event).map((r) => Object.keys(r.properties).sort().join())
+      ),
+    ]
+    expect(rows.filter((r) => r.event === 'instant_import_job_created')).toEqual([
+      expect.objectContaining({ properties: { fileCount: entries().size } }),
+    ])
+    const uploads = rows.filter((r) => r.event === 'instant_import_upload_completed')
+    expect(uploads).toHaveLength(1)
+    expect(uploads[0].properties).toEqual({
+      fileCount: entries().size,
+      totalBytes: [...entries().values()].reduce((n, b) => n + b.length, 0),
+      entityFiles: [...entries().keys()].filter((path) => path.startsWith('entities/')).length,
+      blobFiles: [...entries().keys()].filter((path) => path.startsWith('files/')).length,
+    })
+    const stages = rows.filter((r) => r.event === 'instant_import_stage_updated')
+    expect(stages.length).toBeGreaterThan(5)
+    expect(new Set(stages.map((r) => r.properties.importStage)).size).toBe(stages.length)
+    expect(stages.map((r) => r.properties.importStage)).toEqual(
+      expect.arrayContaining(['validating', 'schema', 'rows', 'links', 'reports', 'cleanup'])
+    )
+    expect(keys('instant_import_stage_updated')).toEqual(['elapsedMs,importStage'])
+    const completed = rows.filter((r) => r.event === 'instant_import_completed')
+    expect(completed).toHaveLength(1)
+    expect(keys('instant_import_completed')).toEqual(['elapsedMs,importStage,stats'])
+    const report = JSON.parse(
+      (
+        await service.query(
+          "SELECT bytes FROM instant_import_service.artifacts WHERE job_id=$1 AND name='verification.json'",
+          [jobId]
+        )
+      ).rows[0].bytes.toString()
+    )
+    expect(completed[0].properties.stats).toEqual({
+      verified: report.verified,
+      source: report.sourceTotals,
+      permissions: report.permissions,
+    })
+    expect(rows.map((r) => r.event)).not.toContain('instant_import_failed')
+    expect(JSON.stringify(rows)).not.toMatch(/people|config\.json|entities\/|127\.0\.0\.1|postgres/)
   })
   it('applies supported security and records a replayable migration while unsupported rules remain closed', async () => {
     const input = entries(),
