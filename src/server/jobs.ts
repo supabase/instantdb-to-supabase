@@ -13,7 +13,8 @@ import { validatePath } from '../import/input'
 import { byCodeUnit } from '../import/json'
 import { analyzeMetadata } from '../import/plan'
 import { PlatformRetryError } from '../platform-retry'
-import { captureJobProgress, telemetryId } from '../telemetry/server'
+import { captureJobProgress, eventId, telemetryId } from '../telemetry/server'
+import { recordUsage, recordUsageDetached } from '../telemetry/usage'
 import { ensureEmptySource, sourceConfig, storageSource } from '../workflow/source'
 import { connectStore, createJob, packPlan, type SourceFile } from '../workflow/store'
 import { connectTargetWithRefresh } from '../workflow/target'
@@ -29,7 +30,7 @@ import {
   ownedJob,
   sameOrigin,
 } from './session'
-import { ensureStore } from './store-ready'
+import { ensureSourceBucket, ensureStore } from './store-ready'
 
 const storageApi = () => {
   const source = sourceConfig()
@@ -99,6 +100,10 @@ export async function createBrowserJob(request: Request) {
     } catch (error) {
       if (error instanceof HttpError || error instanceof PlatformRetryError) throw error
       console.error('Destination preflight failed (details withheld)')
+      await recordUsageDetached(
+        { action: 'instant_import_preflight_failed', properties: {} },
+        { targetRef: value.target.projectRef }
+      )
       throw new HttpError(
         400,
         'Could not validate a blank destination. Choose a healthy project with no application tables, accounts, or Storage buckets, and authorize database access through Supabase.'
@@ -106,15 +111,11 @@ export async function createBrowserJob(request: Request) {
     }
     const jobId = await connect(async (db) => {
       await ensureStore(db)
-      const api = storageApi(),
-        bucket = await api.storage.getBucket(sourceConfig().bucket)
-      if (bucket.error) {
-        if ((await api.storage.createBucket(sourceConfig().bucket, { public: false })).error)
-          throw new Error('Source bucket failed')
-      } else if (bucket.data.public) throw new Error('Source bucket must be private')
+      await ensureSourceBucket(db)
       await db.query(safeSql`BEGIN`)
+      let id: string
       try {
-        const id = await createJob(db, `ui:${digest(target.supabaseUrl)}`, Buffer.alloc(0))
+        id = await createJob(db, `ui:${digest(target.supabaseUrl)}`, Buffer.alloc(0))
         await db.query(
           safeSql`INSERT INTO instant_import_service.browser_jobs(job_id,session_hash,target_encrypted,file_count,selection_hash,telemetry_id) VALUES($1,$2,$3,$4,$5,$6)`,
           [
@@ -127,11 +128,17 @@ export async function createBrowserJob(request: Request) {
           ]
         )
         await db.query(safeSql`COMMIT`)
-        return id
       } catch (error) {
         await db.query(safeSql`ROLLBACK`)
         throw error
       }
+      await recordUsage(
+        db,
+        { action: 'instant_import_job_created', properties: { fileCount: value.fileCount } },
+        { jobId: id, targetRef: value.target.projectRef },
+        eventId(`${id}:created`)
+      )
+      return id
     })
     return Response.json({ jobId }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {

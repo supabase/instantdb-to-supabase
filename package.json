@@ -10,6 +10,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:db": "supabase test db",
     "test:integration": "vitest run tests/oauth-credentials.integration.test.ts tests/restore.integration.test.ts tests/permissions.integration.test.ts tests/workflow.integration.test.ts",
     "test:coverage": "vitest run --coverage --exclude '**/*.integration.test.ts'",
     "import": "node --import tsx scripts/import.ts",

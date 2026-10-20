@@ -4,10 +4,9 @@ import { encryptSecret } from '../src/server/credentials'
 import { connectSupabase, supabaseCallback } from '../src/server/oauth'
 import { digest } from '../src/server/session'
 
-const store = vi.hoisted(() => ({ query: vi.fn(), end: vi.fn(), initialize: vi.fn() }))
+const store = vi.hoisted(() => ({ query: vi.fn(), end: vi.fn() }))
 vi.mock('../src/workflow/store', () => ({
   connectStore: async () => ({ query: store.query, end: store.end }),
-  initializeStore: store.initialize,
 }))
 const state = 'a'.repeat(43),
   cookie = 'b'.repeat(43),
@@ -113,6 +112,6 @@ describe('OAuth callback browser binding and replay protection', () => {
       })
     )
     expect(response.status).toBe(403)
-    expect(store.initialize).not.toHaveBeenCalled()
+    expect(store.query).not.toHaveBeenCalled()
   })
 })

@@ -7,6 +7,7 @@ import { basePath } from '../base-path'
 import { connectionSchema } from '../client/contracts'
 import { PlatformRetryError } from '../platform-retry'
 import { capture, eventId, telemetryId } from '../telemetry/server'
+import { recordUsageDetached } from '../telemetry/usage'
 import { credentialConnectMarginMs } from '../workflow/credential-lease'
 import { connectStore } from '../workflow/store'
 import { decryptSecret, encryptSecret } from './credentials'
@@ -141,21 +142,43 @@ export async function supabaseCallback(request: Request) {
       await saveTokens(db, flow.session_hash, tokens)
       return 'connected' as const
     })
-    await capture(
-      telemetryId(request),
-      result === 'connected'
-        ? 'instant_import_connection_completed'
-        : 'instant_import_connection_failed',
-      { connectionResult: result },
-      eventId(`oauth:${state}:${result}`)
-    )
+    const id = eventId(`oauth:${state}:${result}`)
+    await Promise.all([
+      recordUsageDetached(
+        result === 'connected'
+          ? {
+              action: 'instant_import_connection_completed',
+              properties: { connectionResult: result },
+            }
+          : {
+              action: 'instant_import_connection_failed',
+              properties: { connectionResult: result },
+            },
+        {},
+        id
+      ),
+      capture(
+        telemetryId(request),
+        result === 'connected'
+          ? 'instant_import_connection_completed'
+          : 'instant_import_connection_failed',
+        { connectionResult: result },
+        id
+      ),
+    ])
     return finish(result)
   } catch {
     console.error('OAuth callback failed (details withheld)')
     try {
-      await capture(telemetryId(request), 'instant_import_connection_failed', {
-        connectionResult: 'error',
-      })
+      await Promise.all([
+        recordUsageDetached({
+          action: 'instant_import_connection_failed',
+          properties: { connectionResult: 'error' },
+        }),
+        capture(telemetryId(request), 'instant_import_connection_failed', {
+          connectionResult: 'error',
+        }),
+      ])
       return finish('error')
     } catch {
       return errorResponse(new Error('OAuth configuration is unavailable'))

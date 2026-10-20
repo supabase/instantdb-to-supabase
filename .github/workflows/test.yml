@@ -42,19 +42,10 @@ jobs:
           supabase init --workdir "$RUNNER_TEMP/instant-import"
           supabase start --workdir "$RUNNER_TEMP/instant-import" --exclude studio,logflare,vector,supavisor,imgproxy,edge-runtime
       - name: Start the private job and upload service
-        run: |
-          mkdir -p "$RUNNER_TEMP/instant-import-service/supabase"
-          python3 - <<'PYTHON'
-          import os
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP'])
-          config = (root / 'instant-import/supabase/config.toml').read_text()
-          import re
-          config = re.sub(r'^(\s*port\s*=\s*)543(\d\d)\b', r'\g<1>553\2', config, flags=re.M)
-          config = config.replace('project_id = "instant-import"', 'project_id = "instant-import-service"')
-          (root / 'instant-import-service/supabase/config.toml').write_text(config)
-          PYTHON
-          supabase start --workdir "$RUNNER_TEMP/instant-import-service" --exclude studio,logflare,vector,supavisor,imgproxy,edge-runtime
+        # The repository's supabase/ folder is the service project; starting it applies supabase/migrations.
+        run: supabase start --workdir "$GITHUB_WORKSPACE" --exclude studio,logflare,vector,supavisor,imgproxy,edge-runtime
+      - name: Test the service database
+        run: pnpm test:db
       - name: Configure local test credentials
         run: |
           node --input-type=module <<'JS'
@@ -63,7 +54,7 @@ jobs:
           import { appendFileSync } from 'node:fs'
           const keys = JSON.parse(execFileSync('supabase', ['status', '--workdir', `${process.env.RUNNER_TEMP}/instant-import`, '--output', 'json'], { encoding: 'utf8' }))
           const values = { IMPORT_TEST_DATABASE_URL: keys.DB_URL, IMPORT_TEST_SUPABASE_URL: keys.API_URL, IMPORT_TEST_SERVICE_ROLE_KEY: keys.SERVICE_ROLE_KEY }
-          const service = JSON.parse(execFileSync('supabase', ['status', '--workdir', `${process.env.RUNNER_TEMP}/instant-import-service`, '--output', 'json'], { encoding: 'utf8' }))
+          const service = JSON.parse(execFileSync('supabase', ['status', '--workdir', process.env.GITHUB_WORKSPACE, '--output', 'json'], { encoding: 'utf8' }))
           Object.assign(values, { IMPORT_CREDENTIAL_KEY: randomBytes(32).toString('base64'), IMPORT_JOB_DATABASE_URL: service.DB_URL, IMPORT_JOB_SUPABASE_URL: service.API_URL, IMPORT_JOB_SERVICE_ROLE_KEY: service.SERVICE_ROLE_KEY, IMPORT_TARGETS_JSON: JSON.stringify({test: {databaseUrl: keys.DB_URL, supabaseUrl: keys.API_URL, serviceRoleKey: keys.SERVICE_ROLE_KEY}}), IMPORT_WORKFLOW_TOKEN: 'local-workflow-test-token', IMPORT_WORKFLOW_TEST_URL: 'http://127.0.0.1:3009', WORKFLOW_LOCAL_BASE_URL: 'http://127.0.0.1:3009/migrate/instantdb' })
           for (const [name, value] of Object.entries(values)) appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`)
           JS
@@ -87,4 +78,4 @@ jobs:
         run: |
           if [ -f "$RUNNER_TEMP/instant-workflow.pid" ]; then kill "$(cat "$RUNNER_TEMP/instant-workflow.pid")" || true; fi
           supabase stop --workdir "$RUNNER_TEMP/instant-import" --no-backup
-          supabase stop --workdir "$RUNNER_TEMP/instant-import-service" --no-backup
+          supabase stop --workdir "$GITHUB_WORKSPACE" --no-backup

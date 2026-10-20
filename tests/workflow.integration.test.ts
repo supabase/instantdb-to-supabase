@@ -14,10 +14,11 @@ import { schemaFingerprint } from '../src/import/fingerprint'
 import { readBackupFolder } from '../src/import/input'
 import { analyze } from '../src/import/plan'
 import { publicTables } from '../src/import/relational'
+import { ensureStore } from '../src/server/store-ready'
 import { cleanupBackup } from '../src/workflow/cleanup'
 import { executeImportStep } from '../src/workflow/engine'
 import { rowPage } from '../src/workflow/staging'
-import { getJob, initializeStore, unpackPlan } from '../src/workflow/store'
+import { getJob, unpackPlan } from '../src/workflow/store'
 import { targetSchema } from '../src/workflow/target'
 import { uploadFolder } from '../src/workflow/upload'
 import { entries, fixture, fullEntries, ids } from './fixtures'
@@ -53,7 +54,7 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
     process.env.IMPORT_TARGETS_JSON = JSON.stringify({ test: target })
     await service.connect()
     await db.connect()
-    await initializeStore(service)
+    await ensureStore(service)
   })
   afterAll(async () => {
     await service.end()

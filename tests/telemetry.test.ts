@@ -79,11 +79,12 @@ describe('import telemetry boundary', () => {
       expect(fetcher).not.toHaveBeenCalled()
     }
   )
-  it.each(['dnt', 'sec-gpc'])('honors %s', async (header) => {
+  it.each(['dnt', 'sec-gpc'])('captures despite %s', async (header) => {
     const req = request(event, { [header]: '1', cookie: `instant-import-analytics=${id}` })
-    expect(telemetryId(req)).toBeNull()
-    expect((await POST(req)).headers.get('set-cookie')).toBeNull()
-    expect(fetcher).not.toHaveBeenCalled()
+    expect(telemetryId(req)).toBe(id)
+    expect((await POST(req)).status).toBe(204)
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).distinct_id).toBe(id)
   })
   it.each(['', 'preview', 'development'])(
     'is disabled outside production (%s)',
