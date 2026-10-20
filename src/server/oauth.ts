@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { basePath } from '../base-path'
 import { connectionSchema } from '../client/contracts'
 import { PlatformRetryError } from '../platform-retry'
-import { capture, eventId, telemetryId } from '../telemetry/server'
+import { capture, eventId, requestTelemetryId } from '../telemetry/server'
 import { recordUsageDetached } from '../telemetry/usage'
 import { credentialConnectMarginMs } from '../workflow/credential-lease'
 import { connectStore } from '../workflow/store'
@@ -22,7 +22,7 @@ import {
   selectSecretKey,
   tokenSchema,
 } from './oauth-client'
-import { digest, errorResponse, HttpError, sameOrigin, session } from './session'
+import { digest, errorResponse, HttpError, jsonBody, sameOrigin, session } from './session'
 import { ensureStore } from './store-ready'
 import { loginSchema, temporaryConnection } from './temporary-login'
 
@@ -45,11 +45,11 @@ function flowCookie(value: string, age: number) {
   // OAuth redirects are cross-site top-level navigations; the import session stays Strict.
   return `${flowCookieName}=${value}; Path=${basePath}/api/supabase; HttpOnly; SameSite=Lax; Max-Age=${age}${secure}`
 }
-function finish(result: 'connected' | 'denied' | 'error') {
+function finish(result: 'connected' | 'denied' | 'error', telemetryId: string | null) {
   return new Response(null, {
     status: 303,
     headers: {
-      Location: `${oauthConfig().origin}${basePath}?supabase=${result}`,
+      Location: `${oauthConfig().origin}${basePath}?supabase=${result}${telemetryId ? `#telemetryId=${telemetryId}` : ''}`,
       'Set-Cookie': flowCookie('', 0),
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
@@ -66,7 +66,8 @@ export async function connectSupabase(request: Request) {
       )
     const owner = session(request, true),
       flow = buildAuthorization(),
-      cookie = randomBytes(32).toString('base64url')
+      cookie = randomBytes(32).toString('base64url'),
+      telemetryId = requestTelemetryId(request, await jsonBody(request, 1024).catch(() => null))
     await withDb(async (db) => {
       await ensureStore(db)
       await lock(db, owner.hash)
@@ -75,12 +76,13 @@ export async function connectSupabase(request: Request) {
         [owner.hash]
       )
       await db.query(
-        safeSql`INSERT INTO instant_import_service.oauth_states(state_hash,session_hash,cookie_hash,verifier,expires_at) VALUES($1,$2,$3,$4,now()+interval '10 minutes')`,
+        safeSql`INSERT INTO instant_import_service.oauth_states(state_hash,session_hash,cookie_hash,verifier,expires_at,telemetry_id) VALUES($1,$2,$3,$4,now()+interval '10 minutes',$5)`,
         [
           digest(flow.state),
           owner.hash,
           digest(cookie),
           encryptSecret(`oauth-state:${digest(flow.state)}`, flow.verifier),
+          telemetryId,
         ]
       )
     })
@@ -93,6 +95,7 @@ export async function connectSupabase(request: Request) {
   }
 }
 export async function supabaseCallback(request: Request) {
+  let telemetryId: string | null = null
   try {
     const url = new URL(request.url)
     const state = opaque.parse(url.searchParams.get('state'))
@@ -123,6 +126,7 @@ export async function supabaseCallback(request: Request) {
         )
       ).rows[0]
       if (!flow) throw new HttpError(400, 'OAuth state was already consumed')
+      telemetryId = requestTelemetryId(request, { telemetryId: flow.telemetry_id })
       if (url.searchParams.has('error')) return 'denied' as const
       const code = z.string().min(1).max(8192).parse(url.searchParams.get('code'))
       const verifier = opaque.parse(decryptSecret(`oauth-state:${digest(state)}`, flow.verifier))
@@ -158,7 +162,7 @@ export async function supabaseCallback(request: Request) {
         id
       ),
       capture(
-        telemetryId(request),
+        telemetryId,
         result === 'connected'
           ? 'instant_import_connection_completed'
           : 'instant_import_connection_failed',
@@ -166,7 +170,7 @@ export async function supabaseCallback(request: Request) {
         id
       ),
     ])
-    return finish(result)
+    return finish(result, telemetryId)
   } catch {
     console.error('OAuth callback failed (details withheld)')
     try {
@@ -175,11 +179,11 @@ export async function supabaseCallback(request: Request) {
           action: 'instant_import_connection_failed',
           properties: { connectionResult: 'error' },
         }),
-        capture(telemetryId(request), 'instant_import_connection_failed', {
+        capture(telemetryId, 'instant_import_connection_failed', {
           connectionResult: 'error',
         }),
       ])
-      return finish('error')
+      return finish('error', telemetryId)
     } catch {
       return errorResponse(new Error('OAuth configuration is unavailable'))
     }

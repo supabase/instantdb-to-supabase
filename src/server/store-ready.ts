@@ -15,7 +15,7 @@ export async function ensureStore(db: Client) {
   if (ready) return
   const row = (
     await db.query(
-      safeSql`SELECT to_regclass('instant_import_service.oauth_connections') IS NOT NULL AND to_regclass('public.usage_events') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='instant_import_service' AND table_name='browser_jobs' AND column_name='telemetry_id') AS ready`
+      safeSql`SELECT to_regclass('instant_import_service.oauth_connections') IS NOT NULL AND to_regclass('public.usage_events') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='instant_import_service' AND table_name='browser_jobs' AND column_name='telemetry_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='instant_import_service' AND table_name='oauth_states' AND column_name='telemetry_id') AS ready`
     )
   ).rows[0]
   if (!row?.ready) {

@@ -3,12 +3,10 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
-import { basePath } from '../base-path'
-import { progressStageSchema, type BrowserEvent, type EventMap } from './contracts'
+import { progressStageSchema, type EventMap } from './contracts'
 import type { InstantImportProgressEvent } from './events'
 import { completionStatsSchema, recordUsage, usageEnabled } from './usage'
 
-const cookieName = 'instant-import-analytics'
 export function telemetryConfig() {
   const key = process.env.IMPORT_POSTHOG_KEY
   const host = process.env.IMPORT_POSTHOG_HOST
@@ -27,18 +25,15 @@ export function telemetryConfig() {
     return null
   }
 }
-export function telemetryId(request: Request) {
-  if (!telemetryConfig()) return null
-  const value = request.headers
-    .get('cookie')
-    ?.split(';')
-    .map((p) => p.trim())
-    .find((p) => p.startsWith(`${cookieName}=`))
-    ?.slice(cookieName.length + 1)
-  return z.string().uuid().safeParse(value).success ? value! : null
-}
-export function analyticsCookie(id: string, request: Request) {
-  return `${cookieName}=${id}; Path=${basePath}; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(request.url).protocol === 'https:' || process.env.VERCEL_ENV === 'production' ? '; Secure' : ''}`
+export function requestTelemetryId(request: Request, body: unknown) {
+  if (
+    !telemetryConfig() ||
+    request.headers.get('dnt') === '1' ||
+    request.headers.get('sec-gpc') === '1'
+  )
+    return null
+  const value = z.object({ telemetryId: z.string().uuid() }).safeParse(body)
+  return value.success ? value.data.telemetryId : null
 }
 /** Stable event IDs let PostHog deduplicate retries without emitting source data. */
 export function eventId(key: string) {
@@ -49,10 +44,10 @@ export function eventId(key: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 /** Best effort, bounded delivery. Analytics failures must never fail an import. */
-export async function capture<A extends keyof EventMap | '$pageview'>(
+export async function capture<A extends keyof EventMap>(
   distinctId: string | null,
   action: A,
-  properties: A extends keyof EventMap ? EventMap[A] : Record<string, never>,
+  properties: EventMap[A],
   uuid: string = randomUUID()
 ): Promise<boolean> {
   const config = telemetryConfig()
@@ -74,7 +69,6 @@ export async function capture<A extends keyof EventMap | '$pageview'>(
           source: 'instant-import',
           $process_person_profile: false,
           $geoip_disable: true,
-          ...(action === '$pageview' ? { $pathname: '/' } : {}),
         },
       }),
     })
@@ -84,17 +78,6 @@ export async function capture<A extends keyof EventMap | '$pageview'>(
   } catch {
     return false
   }
-}
-export async function captureBrowserEvent(request: Request, value: BrowserEvent) {
-  // Consent is managed by the host site; browser privacy headers do not gate capture here.
-  if (!telemetryConfig()) return new Response(null, { status: 204 })
-  const existing = telemetryId(request),
-    id = existing ?? randomUUID()
-  await capture(id, value.action, value.properties)
-  return new Response(null, {
-    status: 204,
-    headers: existing ? {} : { 'Set-Cookie': analyticsCookie(id, request) },
-  })
 }
 /** Called from committed worker transitions, not from browser polling. */
 export async function captureJobProgress(db: Client, jobId: string, phase: string, failed = false) {

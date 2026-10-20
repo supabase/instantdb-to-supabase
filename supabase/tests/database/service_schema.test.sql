@@ -2,7 +2,7 @@
 -- that forget row level security.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(25);
+SELECT plan(26);
 
 SELECT has_schema('instant_import_service');
 SELECT has_table('instant_import_service', t, format('instant_import_service.%s exists', t))
@@ -13,6 +13,7 @@ FROM unnest(ARRAY[
 ]::name[]) AS t;
 -- Columns added after the first runtime-initialized deployments; ensureStore checks telemetry_id.
 SELECT has_column('instant_import_service', 'browser_jobs', 'telemetry_id', 'browser_jobs.telemetry_id exists');
+SELECT has_column('instant_import_service', 'oauth_states', 'telemetry_id', 'oauth_states.telemetry_id exists');
 SELECT has_column('instant_import_service', 'transfers', 'storage_version', 'transfers.storage_version exists');
 SELECT has_index('instant_import_service', 'edges', 'edges_reverse', 'reverse edge index exists');
 SELECT has_index('instant_import_service', 'unique_values', 'unique_lookup', 'unique value lookup index exists');

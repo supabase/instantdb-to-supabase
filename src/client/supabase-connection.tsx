@@ -35,7 +35,7 @@ import {
 import { z } from 'zod'
 
 import { basePath } from '../base-path'
-import { useTrack } from '../telemetry/client'
+import { telemetryId, useTrack } from '../telemetry/client'
 import type { ImportConnection, SupabaseProject } from './contracts'
 import { requestJson, type RetryOptions } from './request'
 
@@ -106,7 +106,13 @@ export function useSupabaseConnection() {
     setLoading(true)
     setError('')
     try {
-      window.location.assign((await oauthRequest<{ url: string }>('connect', 'POST')).url)
+      const { url } = await requestJson<{ url: string }>(`${basePath}/api/supabase/connect`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telemetryId: telemetryId() }),
+      })
+      window.location.assign(url)
     } catch (error) {
       track('instant_import_action_failed', { importAction: 'connect' })
       setError(error instanceof Error ? error.message : 'Could not connect to Supabase')

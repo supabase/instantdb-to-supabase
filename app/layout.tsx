@@ -4,6 +4,7 @@ import localFont from 'next/font/local'
 import type { ReactNode } from 'react'
 
 import { Telemetry } from '../src/telemetry/client'
+import { telemetryConfig } from '../src/telemetry/server'
 import { ThemeProvider } from '../vendor/common/Providers'
 
 const inter = localFont({
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           themes={['light', 'dark']}
           storageKey="instant-import-theme"
         >
-          <Telemetry />
+          <Telemetry apiKey={telemetryConfig()?.key ?? null} />
           {children}
         </ThemeProvider>
       </body>
