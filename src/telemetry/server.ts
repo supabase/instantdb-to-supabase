@@ -3,6 +3,7 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
+import { decryptTarget } from '../server/credentials'
 import { progressStageSchema, type EventMap } from './contracts'
 import type { InstantImportProgressEvent } from './events'
 import { completionStatsSchema, recordUsage, usageEnabled } from './usage'
@@ -79,6 +80,14 @@ export async function capture<A extends keyof EventMap>(
     return false
   }
 }
+function destinationRef(jobId: string, encrypted: Buffer) {
+  try {
+    const target = decryptTarget(jobId, encrypted)
+    return 'projectRef' in target ? target.projectRef : undefined
+  } catch {
+    return undefined
+  }
+}
 /** Called from committed worker transitions, not from browser polling. */
 export async function captureJobProgress(db: Client, jobId: string, phase: string, failed = false) {
   if (!progressStageSchema.safeParse(phase).success || (!usageEnabled() && !telemetryConfig()))
@@ -87,11 +96,12 @@ export async function captureJobProgress(db: Client, jobId: string, phase: strin
     // CLI jobs have no browser row: they reach the usage log but never PostHog.
     const row = (
       await db.query(
-        safeSql`SELECT b.telemetry_id,j.error_code,extract(epoch FROM (now()-coalesce(b.created_at,j.created_at)))*1000 AS elapsed_ms FROM instant_import_service.jobs j LEFT JOIN instant_import_service.browser_jobs b ON b.job_id=j.id WHERE j.id=$1`,
+        safeSql`SELECT b.telemetry_id,b.target_encrypted,j.error_code,extract(epoch FROM (now()-coalesce(b.created_at,j.created_at)))*1000 AS elapsed_ms FROM instant_import_service.jobs j LEFT JOIN instant_import_service.browser_jobs b ON b.job_id=j.id WHERE j.id=$1`,
         [jobId]
       )
     ).rows[0]
     if (!row) return
+    const projectRef = row.telemetry_id ? destinationRef(jobId, row.target_encrypted) : undefined
     if (phase === 'analyzing' && !failed) {
       const uploadId = eventId(`${jobId}:upload`)
       const stats = await uploadStats(db, jobId)
@@ -136,7 +146,12 @@ export async function captureJobProgress(db: Client, jobId: string, phase: strin
       { jobId },
       id
     )
-    await capture(row.telemetry_id ?? null, action, { jobId, importStage, elapsedMs }, id)
+    await capture(
+      row.telemetry_id ?? null,
+      action,
+      { jobId, ...(projectRef && { projectRef }), importStage, elapsedMs },
+      id
+    )
   } catch {
     /* Older jobs and analytics outages must not affect migration work. */
   }

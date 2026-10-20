@@ -1,6 +1,7 @@
 import type { Client } from 'pg'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { encryptTarget } from '../src/server/credentials'
 import { browserEventSchema } from '../src/telemetry/contracts'
 import { capture, captureJobProgress, eventId, requestTelemetryId } from '../src/telemetry/server'
 
@@ -97,6 +98,36 @@ describe('import telemetry boundary', () => {
   })
 })
 describe('background import funnel', () => {
+  const projectRef = 'abcdefghijklmnopqrst'
+  const progressRow = () => ({
+    telemetry_id: id,
+    target_encrypted: encryptTarget(id, { mode: 'oauth', projectRef }),
+    elapsed_ms: 1200,
+  })
+  beforeEach(() => vi.stubEnv('IMPORT_CREDENTIAL_KEY', Buffer.alloc(32, 7).toString('base64')))
+  it('attaches the destination project ref to every progress event, including exhausted retries', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [progressRow()] })
+    for (const phase of ['rows', 'completed', 'cancelled'])
+      await captureJobProgress({ query } as unknown as Client, id, phase)
+    await captureJobProgress({ query } as unknown as Client, id, 'rows', true)
+    const sent = fetcher.mock.calls.map(([, init]) => JSON.parse(init.body))
+    expect(sent.map((body) => body.event)).toEqual([
+      'instant_import_stage_updated',
+      'instant_import_completed',
+      'instant_import_closed',
+      'instant_import_failed',
+    ])
+    for (const body of sent) expect(body.properties.projectRef).toBe(projectRef)
+  })
+  it('still sends the event without a project ref when the target cannot be decrypted', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ rows: [{ ...progressRow(), target_encrypted: Buffer.alloc(40) }] })
+    await captureJobProgress({ query } as unknown as Client, id, 'completed')
+    const body = JSON.parse(fetcher.mock.calls[0][1].body)
+    expect(body.event).toBe('instant_import_completed')
+    expect(body.properties).not.toHaveProperty('projectRef')
+  })
   it('captures stages and terminal outcomes with stable retry IDs', async () => {
     const query = vi
       .fn()

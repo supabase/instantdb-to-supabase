@@ -76,7 +76,12 @@ export interface InstantImportProgressEvent {
     | 'instant_import_completed'
     | 'instant_import_failed'
     | 'instant_import_closed'
-  properties: { jobId: string; importStage: InstantImportStage; elapsedMs: number }
+  properties: {
+    jobId: string
+    projectRef?: string
+    importStage: InstantImportStage
+    elapsedMs: number
+  }
 }
 /**
  * Explicit handoff interactions. Captures categories, never prompts, SQL, or URLs.
