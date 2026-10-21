@@ -2,6 +2,7 @@ import { createSHA256 } from 'hash-wasm'
 import { Upload } from 'tus-js-client'
 
 import { basePath } from '../base-path'
+import { telemetryId } from '../telemetry/client'
 import type { FileDescriptor, ImportConnection } from './contracts'
 import { requestJson, type RetryOptions } from './request'
 
@@ -87,6 +88,7 @@ export async function uploadBackup(input: {
           target: input.target,
           fileCount: files.length,
           selectionHash,
+          telemetryId: telemetryId(),
         },
         'POST',
         options

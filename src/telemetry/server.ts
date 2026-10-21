@@ -3,12 +3,11 @@ import { safeSql } from '@supabase/pg-meta'
 import type { Client } from 'pg'
 import { z } from 'zod'
 
-import { basePath } from '../base-path'
-import { progressStageSchema, type BrowserEvent, type EventMap } from './contracts'
+import { decryptTarget } from '../server/credentials'
+import { progressStageSchema, type EventMap } from './contracts'
 import type { InstantImportProgressEvent } from './events'
 import { completionStatsSchema, recordUsage, usageEnabled } from './usage'
 
-const cookieName = 'instant-import-analytics'
 export function telemetryConfig() {
   const key = process.env.IMPORT_POSTHOG_KEY
   const host = process.env.IMPORT_POSTHOG_HOST
@@ -27,18 +26,15 @@ export function telemetryConfig() {
     return null
   }
 }
-export function telemetryId(request: Request) {
-  if (!telemetryConfig()) return null
-  const value = request.headers
-    .get('cookie')
-    ?.split(';')
-    .map((p) => p.trim())
-    .find((p) => p.startsWith(`${cookieName}=`))
-    ?.slice(cookieName.length + 1)
-  return z.string().uuid().safeParse(value).success ? value! : null
-}
-export function analyticsCookie(id: string, request: Request) {
-  return `${cookieName}=${id}; Path=${basePath}; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(request.url).protocol === 'https:' || process.env.VERCEL_ENV === 'production' ? '; Secure' : ''}`
+export function requestTelemetryId(request: Request, body: unknown) {
+  if (
+    !telemetryConfig() ||
+    request.headers.get('dnt') === '1' ||
+    request.headers.get('sec-gpc') === '1'
+  )
+    return null
+  const value = z.object({ telemetryId: z.string().uuid() }).safeParse(body)
+  return value.success ? value.data.telemetryId : null
 }
 /** Stable event IDs let PostHog deduplicate retries without emitting source data. */
 export function eventId(key: string) {
@@ -49,10 +45,10 @@ export function eventId(key: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 /** Best effort, bounded delivery. Analytics failures must never fail an import. */
-export async function capture<A extends keyof EventMap | '$pageview'>(
+export async function capture<A extends keyof EventMap>(
   distinctId: string | null,
   action: A,
-  properties: A extends keyof EventMap ? EventMap[A] : Record<string, never>,
+  properties: EventMap[A],
   uuid: string = randomUUID()
 ): Promise<boolean> {
   const config = telemetryConfig()
@@ -74,7 +70,6 @@ export async function capture<A extends keyof EventMap | '$pageview'>(
           source: 'instant-import',
           $process_person_profile: false,
           $geoip_disable: true,
-          ...(action === '$pageview' ? { $pathname: '/' } : {}),
         },
       }),
     })
@@ -85,16 +80,13 @@ export async function capture<A extends keyof EventMap | '$pageview'>(
     return false
   }
 }
-export async function captureBrowserEvent(request: Request, value: BrowserEvent) {
-  // Consent is managed by the host site; browser privacy headers do not gate capture here.
-  if (!telemetryConfig()) return new Response(null, { status: 204 })
-  const existing = telemetryId(request),
-    id = existing ?? randomUUID()
-  await capture(id, value.action, value.properties)
-  return new Response(null, {
-    status: 204,
-    headers: existing ? {} : { 'Set-Cookie': analyticsCookie(id, request) },
-  })
+function destinationRef(jobId: string, encrypted: Buffer) {
+  try {
+    const target = decryptTarget(jobId, encrypted)
+    return 'projectRef' in target ? target.projectRef : undefined
+  } catch {
+    return undefined
+  }
 }
 /** Called from committed worker transitions, not from browser polling. */
 export async function captureJobProgress(db: Client, jobId: string, phase: string, failed = false) {
@@ -104,11 +96,12 @@ export async function captureJobProgress(db: Client, jobId: string, phase: strin
     // CLI jobs have no browser row: they reach the usage log but never PostHog.
     const row = (
       await db.query(
-        safeSql`SELECT b.telemetry_id,j.error_code,extract(epoch FROM (now()-coalesce(b.created_at,j.created_at)))*1000 AS elapsed_ms FROM instant_import_service.jobs j LEFT JOIN instant_import_service.browser_jobs b ON b.job_id=j.id WHERE j.id=$1`,
+        safeSql`SELECT b.telemetry_id,b.target_encrypted,j.error_code,extract(epoch FROM (now()-coalesce(b.created_at,j.created_at)))*1000 AS elapsed_ms FROM instant_import_service.jobs j LEFT JOIN instant_import_service.browser_jobs b ON b.job_id=j.id WHERE j.id=$1`,
         [jobId]
       )
     ).rows[0]
     if (!row) return
+    const projectRef = row.telemetry_id ? destinationRef(jobId, row.target_encrypted) : undefined
     if (phase === 'analyzing' && !failed) {
       const uploadId = eventId(`${jobId}:upload`)
       const stats = await uploadStats(db, jobId)
@@ -153,7 +146,12 @@ export async function captureJobProgress(db: Client, jobId: string, phase: strin
       { jobId },
       id
     )
-    await capture(row.telemetry_id ?? null, action, { jobId, importStage, elapsedMs }, id)
+    await capture(
+      row.telemetry_id ?? null,
+      action,
+      { jobId, ...(projectRef && { projectRef }), importStage, elapsedMs },
+      id
+    )
   } catch {
     /* Older jobs and analytics outages must not affect migration work. */
   }

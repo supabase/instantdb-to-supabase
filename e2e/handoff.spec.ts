@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 import { basePath } from '../src/base-path'
 import type { Handoff } from '../src/import/handoff'
 import { mockSupabaseConnection, projectRef } from './oauth-fixtures'
+import { recordPostHog } from './posthog-fixtures'
 
 const jobId = '00000000-0000-4000-8000-000000000001'
 const handoff: Handoff = {
@@ -234,11 +235,7 @@ test('replaces completed progress and downloads with project links and CLI instr
   await expect(page.getByText('supabase init', { exact: true })).toBeVisible()
 })
 test('loads prompts on demand and copies the full context', async ({ page, context }) => {
-  const events: { action: string; properties: Record<string, unknown> }[] = []
-  await page.route('**/api/telemetry', (route) => {
-    events.push(route.request().postDataJSON())
-    return route.fulfill({ status: 204 })
-  })
+  const { events } = await recordPostHog(page)
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   let requests = 0
   const prompt =
@@ -258,14 +255,12 @@ test('loads prompts on demand and copies the full context', async ({ page, conte
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(prompt)
   expect(requests).toBe(1)
   await expect
-    .poll(() => events.map((event) => event.action))
+    .poll(() => events.map((event) => event.event))
     .toContain('instant_import_handoff_copied')
-  expect(events).toContainEqual({
-    action: 'instant_import_handoff_opened',
+  expect(events.find((event) => event.event === 'instant_import_handoff_opened')).toMatchObject({
     properties: { handoffType: 'policy' },
   })
-  expect(events).toContainEqual({
-    action: 'instant_import_handoff_copied',
+  expect(events.find((event) => event.event === 'instant_import_handoff_copied')).toMatchObject({
     properties: { handoffType: 'policy' },
   })
   expect(JSON.stringify(events)).not.toMatch(/untrusted|Original rule|people|project directory/)

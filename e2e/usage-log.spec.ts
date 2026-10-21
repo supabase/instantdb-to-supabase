@@ -11,7 +11,9 @@ if (url && !['localhost', '127.0.0.1'].includes(new URL(url).hostname))
 
 test.skip(!url, 'Requires IMPORT_JOB_DATABASE_URL for a local service project')
 
-test('records browser events in the usage log when PostHog is blocked', async ({ page }) => {
+test('records browser events in the usage log when privacy signals turn PostHog off', async ({
+  page,
+}) => {
   const db = new Client({ connectionString: url })
   await db.connect()
   try {
@@ -21,10 +23,10 @@ test('records browser events in the usage log when PostHog is blocked', async ({
       Object.defineProperty(navigator, 'globalPrivacyControl', { value: true })
       Object.defineProperty(navigator, 'doNotTrack', { value: '1' })
     })
-    // A content blocker drops the PostHog relay; the Server Action posts to the page itself.
-    let blocked = 0
-    await page.route('**/api/telemetry', (route) => {
-      blocked++
+    // PostHog honors the privacy signals; the Server Action posts to the page itself.
+    let posthogRequests = 0
+    await page.route('https://ph.supabase.com/**', (route) => {
+      posthogRequests++
       return route.abort('blockedbyclient')
     })
     await mockSupabaseConnection(page, false)
@@ -50,7 +52,7 @@ test('records browser events in the usage log when PostHog is blocked', async ({
           'instant_import_action_failed',
         ])
       )
-    expect(blocked).toBeGreaterThan(0)
+    expect(posthogRequests).toBe(0)
     const recorded = await rows()
     expect(recorded).toContainEqual({
       event: 'instant_import_connection_clicked',

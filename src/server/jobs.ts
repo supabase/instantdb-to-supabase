@@ -13,7 +13,7 @@ import { validatePath } from '../import/input'
 import { byCodeUnit } from '../import/json'
 import { analyzeMetadata } from '../import/plan'
 import { PlatformRetryError } from '../platform-retry'
-import { captureJobProgress, eventId, telemetryId } from '../telemetry/server'
+import { capture, captureJobProgress, eventId, requestTelemetryId } from '../telemetry/server'
 import { recordUsage, recordUsageDetached } from '../telemetry/usage'
 import { ensureEmptySource, sourceConfig, storageSource } from '../workflow/source'
 import { connectStore, createJob, packPlan, type SourceFile } from '../workflow/store'
@@ -67,13 +67,14 @@ async function ownedLockedJob(db: Client, request: Request, id: string) {
 export async function createBrowserJob(request: Request) {
   try {
     sameOrigin(request)
+    const body = await jsonBody(request)
     const value = z
       .object({
         target: oauthTargetSchema,
         fileCount: z.number().int().min(1).max(10000),
         selectionHash: z.string().regex(/^[a-f0-9]{64}$/),
       })
-      .parse(await jsonBody(request))
+      .parse(body)
     const owner = connectedSession(request)
     // Validate encryption before minting credentials or connecting.
     encryptTarget('preflight', value.target)
@@ -100,10 +101,13 @@ export async function createBrowserJob(request: Request) {
     } catch (error) {
       if (error instanceof HttpError || error instanceof PlatformRetryError) throw error
       console.error('Destination preflight failed (details withheld)')
-      await recordUsageDetached(
-        { action: 'instant_import_preflight_failed', properties: {} },
-        { targetRef: value.target.projectRef }
-      )
+      await Promise.all([
+        recordUsageDetached(
+          { action: 'instant_import_preflight_failed', properties: {} },
+          { targetRef: value.target.projectRef }
+        ),
+        capture(requestTelemetryId(request, body), 'instant_import_preflight_failed', {}),
+      ])
       throw new HttpError(
         400,
         'Could not validate a blank destination. Choose a healthy project with no application tables, accounts, or Storage buckets, and authorize database access through Supabase.'
@@ -124,7 +128,7 @@ export async function createBrowserJob(request: Request) {
             encryptTarget(id, value.target),
             value.fileCount,
             value.selectionHash,
-            telemetryId(request),
+            requestTelemetryId(request, body),
           ]
         )
         await db.query(safeSql`COMMIT`)

@@ -15,6 +15,16 @@ export interface InstantImportConnectionResultEvent {
   properties: { connectionResult: 'connected' | 'denied' | 'error' }
 }
 /**
+ * The chosen destination failed the blank-project check, so no job was created.
+ * @group Events
+ * @source instant-import job creation after destination preflight
+ * @page /
+ */
+export interface InstantImportPreflightEvent {
+  action: 'instant_import_preflight_failed'
+  properties: Record<string, never>
+}
+/**
  * Backup selection or upload submission, with aggregate sizes only.
  * @group Events
  * @source instant-import folder selection and upload handlers
@@ -66,7 +76,12 @@ export interface InstantImportProgressEvent {
     | 'instant_import_completed'
     | 'instant_import_failed'
     | 'instant_import_closed'
-  properties: { jobId: string; importStage: InstantImportStage; elapsedMs: number }
+  properties: {
+    jobId: string
+    projectRef?: string
+    importStage: InstantImportStage
+    elapsedMs: number
+  }
 }
 /**
  * Explicit handoff interactions. Captures categories, never prompts, SQL, or URLs.
@@ -96,6 +111,7 @@ export interface InstantImportHandoffEvent {
 export type TelemetryEvent =
   | InstantImportConnectionEvent
   | InstantImportConnectionResultEvent
+  | InstantImportPreflightEvent
   | InstantImportBackupEvent
   | InstantImportActionEvent
   | InstantImportProgressEvent
