@@ -1,4 +1,4 @@
-import { browserJobStatus, cancelBrowserJob } from '../../../../src/server/jobs'
+import { browserJobStatus, cancelBrowserJob } from '../../../../../../src/server/jobs'
 
 export const maxDuration = 300
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {

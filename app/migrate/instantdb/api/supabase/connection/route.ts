@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-import { disconnectSupabase, supabaseConnection } from '../../../../src/server/oauth'
+import { disconnectSupabase, supabaseConnection } from '../../../../../../src/server/oauth'
 
 export async function GET(request: Request) {
   await connection()

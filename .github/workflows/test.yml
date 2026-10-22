@@ -59,7 +59,7 @@ jobs:
           const keys = JSON.parse(execFileSync('supabase', ['status', '--workdir', `${process.env.RUNNER_TEMP}/instant-import`, '--output', 'json'], { encoding: 'utf8' }))
           const values = { IMPORT_TEST_DATABASE_URL: keys.DB_URL, IMPORT_TEST_SUPABASE_URL: keys.API_URL, IMPORT_TEST_SERVICE_ROLE_KEY: keys.SERVICE_ROLE_KEY }
           const service = JSON.parse(execFileSync('supabase', ['status', '--workdir', process.env.GITHUB_WORKSPACE, '--output', 'json'], { encoding: 'utf8' }))
-          Object.assign(values, { IMPORT_CREDENTIAL_KEY: randomBytes(32).toString('base64'), IMPORT_JOB_DATABASE_URL: service.DB_URL, IMPORT_JOB_SUPABASE_URL: service.API_URL, IMPORT_JOB_SERVICE_ROLE_KEY: service.SERVICE_ROLE_KEY, IMPORT_TARGETS_JSON: JSON.stringify({test: {databaseUrl: keys.DB_URL, supabaseUrl: keys.API_URL, serviceRoleKey: keys.SERVICE_ROLE_KEY}}), IMPORT_WORKFLOW_TOKEN: 'local-workflow-test-token', IMPORT_WORKFLOW_TEST_URL: 'http://127.0.0.1:3009', WORKFLOW_LOCAL_BASE_URL: 'http://127.0.0.1:3009/migrate/instantdb' })
+          Object.assign(values, { IMPORT_CREDENTIAL_KEY: randomBytes(32).toString('base64'), IMPORT_JOB_DATABASE_URL: service.DB_URL, IMPORT_JOB_SUPABASE_URL: service.API_URL, IMPORT_JOB_SERVICE_ROLE_KEY: service.SERVICE_ROLE_KEY, IMPORT_TARGETS_JSON: JSON.stringify({test: {databaseUrl: keys.DB_URL, supabaseUrl: keys.API_URL, serviceRoleKey: keys.SERVICE_ROLE_KEY}}), IMPORT_WORKFLOW_TOKEN: 'local-workflow-test-token', IMPORT_WORKFLOW_TEST_URL: 'http://127.0.0.1:3009', WORKFLOW_LOCAL_BASE_URL: 'http://127.0.0.1:3009' })
           for (const [name, value] of Object.entries(values)) appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`)
           JS
       - name: Start the Workflow runtime
