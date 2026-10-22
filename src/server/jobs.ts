@@ -221,13 +221,19 @@ export async function registerBrowserFile(request: Request, id: string) {
         )
         registered.etag = etag
       }
-      const source = sourceConfig(),
-        uploaded = !!registered.etag
-      const signed = uploaded
+      const source = sourceConfig()
+      let uploaded = !!registered.etag
+      let signed = uploaded
         ? null
         : await storageApi()
             .storage.from(source.bucket)
             .createSignedUploadUrl(registered.object_key)
+      // TUS only creates the object once every byte arrives, so an existing object means the
+      // upload finished but its completion was not recorded. Completion re-verifies its size.
+      if ((signed?.error as { statusCode?: string } | undefined)?.statusCode === '409') {
+        uploaded = true
+        signed = null
+      }
       if (signed?.error) throw new Error('Upload authorization failed')
       return Response.json(
         {
@@ -265,7 +271,7 @@ export async function completeBrowserFile(request: Request, id: string, fileId: 
           `${source.url}/storage/v1/object/authenticated/${source.bucket}/${file.object_key}`,
           {
             method: 'HEAD',
-            headers: { Authorization: `Bearer ${source.key}` },
+            headers: { apikey: source.key, Authorization: `Bearer ${source.key}` },
             signal: AbortSignal.timeout(30000),
           }
         )

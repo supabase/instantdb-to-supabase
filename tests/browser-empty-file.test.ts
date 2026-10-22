@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { registerBrowserFile } from '../src/server/jobs'
+import { completeBrowserFile, registerBrowserFile } from '../src/server/jobs'
 import { digest } from '../src/server/session'
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), end: vi.fn(), empty: vi.fn(), sign: vi.fn() }))
@@ -95,4 +95,36 @@ it('leaves the file retryable when empty upload verification fails', async () =>
   expect((await registerBrowserFile(request(), id)).status).toBe(503)
   expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes('SET etag=$3'))).toBe(false)
   expect(mocks.sign).not.toHaveBeenCalled()
+})
+it('recovers a finished upload whose completion was not recorded', async () => {
+  file.size = '1'
+  mocks.sign.mockResolvedValue({ data: null, error: { statusCode: '409' } })
+  const response = await registerBrowserFile(request(), id)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ uploaded: true, id: fileId })
+})
+it('still fails other upload authorization errors', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  file.size = '1'
+  mocks.sign.mockResolvedValue({ data: null, error: { statusCode: '403' } })
+  expect((await registerBrowserFile(request(), id)).status).toBe(503)
+})
+it('verifies completed uploads with the apikey header that secret keys require', async () => {
+  file.size = '1'
+  const fetch = vi
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(
+      new Response(null, { status: 200, headers: { etag: 'v1', 'content-length': '1' } })
+    )
+  const response = await completeBrowserFile(request(), id, fileId)
+  expect(await response.json()).toEqual({ uploaded: true })
+  expect(fetch.mock.calls[0][1]?.headers).toMatchObject({
+    apikey: 'private-key',
+    Authorization: 'Bearer private-key',
+  })
+  expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining('SET etag=$3'), [
+    id,
+    fileId,
+    'v1',
+  ])
 })
