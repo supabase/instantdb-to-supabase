@@ -2,9 +2,9 @@ import { safeSql } from '@supabase/pg-meta'
 import { start } from 'workflow/api'
 import { z } from 'zod'
 
-import { authorized } from '../../../../src/workflow/api-auth'
-import { connectStore, getJob } from '../../../../src/workflow/store'
-import { importBackup } from '../../../../workflows/import-backup'
+import { authorized } from '../../../../../../src/workflow/api-auth'
+import { connectStore, getJob } from '../../../../../../src/workflow/store'
+import { importBackup } from '../../../../../../workflows/import-backup'
 
 export const maxDuration = 300
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {

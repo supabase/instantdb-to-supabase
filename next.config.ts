@@ -10,12 +10,17 @@ if (!process.env.VERCEL_DEPLOYMENT_ID && !process.env.WORKFLOW_TARGET_WORLD) {
 }
 
 const nextConfig: NextConfig = {
-  basePath,
+  // Routes live under app/migrate/instantdb instead of Next's basePath: on Vercel, queue-triggered
+  // Workflow routes 404 under a basePath (vercel/workflow#4971), so they must stay at the root.
+  assetPrefix: basePath,
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
   agentRules: false,
   transpilePackages: ['ui', 'ui-patterns'],
+  async rewrites() {
+    return [{ source: `${basePath}/_next/:path*`, destination: '/_next/:path*' }]
+  },
   async redirects() {
     return [
       {
@@ -23,7 +28,6 @@ const nextConfig: NextConfig = {
         // supabase.com proxies only the basePath, so sending the bare deployment root there cannot loop.
         destination:
           process.env.VERCEL_ENV === 'production' ? `https://supabase.com${basePath}` : basePath,
-        basePath: false,
         permanent: false,
       },
     ]

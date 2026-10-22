@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-import { supabaseCallback } from '../../../../src/server/oauth'
+import { supabaseCallback } from '../../../../../../src/server/oauth'
 
 export async function GET(request: Request) {
   await connection()
