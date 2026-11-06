@@ -1,0 +1,7 @@
+# Anchored so nested source folders such as app/.../artifacts/ still deploy.
+.env*
+/.workflow-data
+/artifacts
+/coverage
+/test-results
+/playwright-report

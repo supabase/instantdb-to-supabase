@@ -18,4 +18,4 @@ pnpm vendor:sync --source /path/to/supabase --ref FULL_COMMIT_SHA
 
 The script refuses to overwrite edited snapshot files and reads all upstream files before writing. It updates the existing file set only: inspect upstream imports for newly needed files, add them to the manifest, and update the local export lists and dependencies as needed. Review license changes too. Run `pnpm vendor:check`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm test:prettier`, `pnpm build`, and the applicable integration/browser tests before committing.
 
-The code under the four package directories is declared MIT by its upstream package manifests. The broader repository is Apache-2.0 (see the root LICENSE). Font licenses are retained beside the font files. Preserve these notices when distributing the snapshot.
+All code under `vendor/` is declared MIT by its upstream package manifests. Components under `vendor/ui/src/components/shadcn` are derived from [shadcn/ui](https://github.com/shadcn-ui/ui). The broader repository is Apache-2.0 (see the root LICENSE). Font licenses are retained beside the font files. Preserve these notices when distributing the snapshot.

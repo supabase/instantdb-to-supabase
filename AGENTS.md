@@ -1,6 +1,6 @@
 # InstantDB to Supabase
 
-Standalone Next.js app and Workflow importer. Requires Node >=22.13 and pnpm 11.
+Standalone Next.js app and Workflow importer. Requires Node 24 and pnpm 11.
 
 Run pnpm dev (port 3009), pnpm test, pnpm typecheck, pnpm lint, and pnpm build. Run pnpm test:db (pgTAP, needs supabase start in the repository root) after changing supabase/migrations. Integration and browser checks are described in README.md. Use pnpm run import for the operator CLI (pnpm import alone is a package-manager command).
 
