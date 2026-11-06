@@ -1,8 +1,10 @@
 import './globals.css'
 
+import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import type { ReactNode } from 'react'
 
+import { siteDescription, siteTitle } from '../src/site-metadata'
 import { Telemetry } from '../src/telemetry/client'
 import { telemetryConfig } from '../src/telemetry/server'
 import { ThemeProvider } from '../vendor/common/Providers'
@@ -20,10 +22,10 @@ const mono = localFont({
   weight: '200 900',
 })
 
-export const metadata = {
-  title: 'InstantDB to Supabase Migration',
-  description:
-    'Migrate your InstantDB backup to Supabase with Postgres tables, Auth accounts, Storage files, and readable SQL migrations.',
+export const metadata: Metadata = {
+  metadataBase: new URL('https://supabase.com'),
+  title: siteTitle,
+  description: siteDescription,
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

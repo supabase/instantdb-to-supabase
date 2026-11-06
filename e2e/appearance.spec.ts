@@ -60,3 +60,33 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(page.getByRole('menuitemradio', { name: 'System', exact: true })).toBeVisible()
   })
 }
+
+// JavaScript stays off so these see only what crawlers and link unfurlers get from the server.
+test.describe('server-rendered landing page', () => {
+  test.use({ javaScriptEnabled: false })
+
+  test('includes absolute canonical and social metadata', async ({ page }) => {
+    const url = `https://supabase.com${basePath}`
+    const image = 'https://supabase.com/images/og/supabase-og.png'
+    await page.goto(basePath)
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', url)
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'InstantDB to Supabase Migration'
+    )
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', url)
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', image)
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+      'content',
+      'summary_large_image'
+    )
+  })
+
+  test('links to the source repository', async ({ page }) => {
+    await page.goto(basePath)
+    await expect(page.getByRole('link', { name: 'View source on GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/supabase/instantdb-to-supabase'
+    )
+  })
+})
