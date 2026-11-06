@@ -41,10 +41,20 @@ export function ImportShell({ children }: { children: ReactNode }) {
           {children}
         </main>
         <footer className="border-t">
-          <p className="mx-auto max-w-5xl px-6 py-5 text-xs text-foreground-lighter xl:px-10">
-            Imports write only to the Supabase project you choose. Your InstantDB app and backup
-            stay unchanged.
-          </p>
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-6 py-5 text-xs text-foreground-lighter sm:flex-row sm:items-center sm:justify-between xl:px-10">
+            <p>
+              Imports write only to the Supabase project you choose. Your InstantDB app and backup
+              stay unchanged.
+            </p>
+            <a
+              href="https://github.com/supabase/instantdb-to-supabase"
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-foreground-light underline underline-offset-4 focus-visible:outline-brand"
+            >
+              View source on GitHub
+            </a>
+          </div>
         </footer>
       </div>
     </TooltipProvider>
