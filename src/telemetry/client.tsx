@@ -10,7 +10,7 @@ import { browserEventSchema, type BrowserEvent, type EventMap } from './contract
 let enabled = false
 let backups = 0
 let pageviewSent = false
-/** Anonymous first-party usage log, delivered even when a content blocker drops PostHog. */
+/** First-party usage log, delivered even when a content blocker drops PostHog. */
 function backup(value: BrowserEvent) {
   try {
     if (typeof window === 'undefined' || backups >= 20) return

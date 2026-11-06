@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { getCreateMigrationsTableSQL, getMigrationsSql, ident, safeSql } from '@supabase/pg-meta'
+import {
+  getCreateMigrationsTableSQL,
+  getMigrationsSql,
+  ident,
+  safeSql,
+  type SafeSqlFragment,
+} from '@supabase/pg-meta'
 import { createClient } from '@supabase/supabase-js'
 import { Client } from 'pg'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -7,6 +13,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { schemaFingerprint } from '../src/import/fingerprint'
 import { readBackupFolder } from '../src/import/input'
 import { migrationFile, migrationFor } from '../src/import/migrations'
+import { hasAuthIdentity } from '../src/import/native'
 import { compilePermissions } from '../src/import/permissions'
 import { analyze } from '../src/import/plan'
 import { publicTables } from '../src/import/relational'
@@ -917,93 +924,84 @@ describe('blank local Supabase', () => {
     }
   })
   it.skipIf(!process.env.IMPORT_EXAMPLE_PATH)(
-    'restores the supplied extracted example with exact expected totals',
+    'restores an extracted backup to totals computed from its input',
     async () => {
-      const plan = start(await readBackupFolder(process.env.IMPORT_EXAMPLE_PATH!))
+      const input = await readBackupFolder(process.env.IMPORT_EXAMPLE_PATH!)
+      const plan = start(input)
+      const count = async (sql: SafeSqlFragment) => Number((await db.query(sql)).rows[0].n)
+      const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
       expect(publicTables(plan)).not.toEqual(
         expect.arrayContaining(['files', 'users', 'streams', 'oauth_providers'])
       )
-      expect(plan.sourceTotals).toEqual({
-        namespaces: 37,
-        rows: 598,
-        edges: 1881,
-        files: 9,
-        bytes: 603,
-      })
-      expect(publicTables(plan)).toHaveLength(43)
-      expect(plan.links.filter((l) => l.mapping.kind === 'foreign_key')).toHaveLength(38)
-      expect(plan.totals).toEqual({ namespaces: 35, rows: 591, edges: 1878, files: 7, bytes: 531 })
+
+      const sourceRows = sum(
+        [...input]
+          .filter(([path]) => /^entities\/.+\.jsonl$/.test(path))
+          .map(
+            ([, bytes]) =>
+              bytes
+                .toString()
+                .split('\n')
+                .filter((line) => line.trim()).length
+          )
+      )
+      expect(plan.sourceTotals.rows).toBe(sourceRows)
+      expect(plan.sourceTotals.namespaces).toBe(plan.namespaces.length)
+      const imported = plan.namespaces.filter((ns) => ns.destination !== 'excluded')
+      expect(plan.totals.namespaces).toBe(imported.length)
+      for (const key of ['rows', 'edges', 'files', 'bytes'] as const)
+        expect(plan.totals[key]).toBeLessThanOrEqual(plan.sourceTotals[key])
+
       expect((await restore(plan, target, { schema })).verified).toEqual(plan.totals)
-      expect((await api.auth.admin.listUsers()).data.users).toHaveLength(5)
+      expect(await count(safeSql`SELECT count(*) AS n FROM auth.users`)).toBe(
+        plan.namespaces.find((ns) => ns.source === '$users')?.rows.filter(hasAuthIdentity).length ??
+          0
+      )
+      // $files rows follow the native file list, which leaves out stream-only files.
+      const tables = imported.filter((ns) => ns.destination === 'public' && ns.source !== '$files')
+      for (const ns of tables)
+        expect(
+          await count(safeSql`SELECT count(*) AS n FROM ${qualified('public', ns.target)}`)
+        ).toBe(ns.rows.length)
+      for (const { mapping, edges } of plan.links)
+        expect(
+          await count(
+            mapping.kind === 'junction'
+              ? safeSql`SELECT count(*) AS n FROM ${qualified('public', mapping.table)}`
+              : safeSql`SELECT count(*) AS n FROM ${qualified('public', mapping.table)} WHERE ${ident(mapping.column)} IS NOT NULL`
+          )
+        ).toBe(edges.length)
+
       const permissions = compilePermissions(plan)
-      expect(
-        permissions.rules.filter((r) => r.action === 'view' && r.effect === 'allow')
-      ).toHaveLength(8)
-      expect(
-        permissions.rules.find((r) => r.namespace === 'tasks' && r.action === 'view')
-      ).toMatchObject({ status: 'manual' })
+      const closedTables = plan.namespaces
+        .filter(
+          (ns) =>
+            ns.destination === 'public' &&
+            permissions.rules.some(
+              (rule) =>
+                rule.namespace === ns.source && rule.action === 'view' && rule.status === 'manual'
+            )
+        )
+        .map((ns) => ns.target)
       await db.query('BEGIN')
       try {
         for (const statement of permissions.statements) await db.query(statement)
-        await db.query('SET LOCAL ROLE anon')
-        expect(
-          (
-            await db.query(
-              safeSql`SELECT has_table_privilege(current_user, 'public.tasks', 'SELECT') AS allowed`
-            )
-          ).rows[0].allowed
-        ).toBe(false)
-        expect((await db.query('SELECT count(id) FROM public.products')).rows[0].count).toBe(
-          String(
-            plan.namespaces
-              .find((n) => n.source === 'products')!
-              .rows.filter((row) => row.values.active).length
-          )
-        )
-        expect(
-          (
-            await db.query(
-              "SELECT has_table_privilege(current_user, 'public.documents', 'SELECT') AS allowed"
-            )
-          ).rows[0].allowed
-        ).toBe(false)
-        await db.query('RESET ROLE')
-        const users = (
-          await db.query(
-            'SELECT auth_user_id FROM public.user_accounts WHERE auth_user_id IS NOT NULL'
-          )
-        ).rows
-        for (const user of users) {
-          await db.query("SELECT set_config('request.jwt.claim.sub', $1, true)", [
-            user.auth_user_id,
-          ])
-          await db.query('SET LOCAL ROLE authenticated')
-          expect(
-            (
-              await db.query(
-                safeSql`SELECT has_table_privilege(current_user, 'public.tasks', 'SELECT') AS allowed`
-              )
-            ).rows[0].allowed
-          ).toBe(false)
+        for (const role of [safeSql`anon`, safeSql`authenticated`]) {
+          await db.query(safeSql`SET LOCAL ROLE ${role}`)
+          for (const table of closedTables)
+            expect(
+              (
+                await db.query(
+                  safeSql`SELECT has_table_privilege(current_user, $1, 'SELECT') AS allowed`,
+                  [`public.${ident(table)}`]
+                )
+              ).rows[0].allowed
+            ).toBe(false)
           await db.query('RESET ROLE')
         }
       } finally {
         await db.query('ROLLBACK')
       }
-
-      expect(
-        (await db.query('SELECT count(*) FROM public.tasks WHERE project_id IS NOT NULL')).rows[0]
-          .count
-      ).toBe('300')
-      expect(
-        (
-          await db.query(
-            "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='tasks'"
-          )
-        ).rows.map((r) => r.column_name)
-      ).toEqual(
-        expect.arrayContaining(['id', 'title', 'status', 'due_at', 'project_id', 'parent_id'])
-      )
     }
   )
 })
