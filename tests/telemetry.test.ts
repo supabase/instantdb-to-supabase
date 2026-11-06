@@ -24,7 +24,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 describe('import telemetry boundary', () => {
-  it('sends anonymous server events without person profiles or GeoIP', async () => {
+  it('sends server events without person profiles or GeoIP', async () => {
     expect(
       await capture(id, 'instant_import_connection_completed', { connectionResult: 'connected' })
     ).toBe(true)

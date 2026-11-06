@@ -2,6 +2,9 @@
   "name": "instantdb-to-supabase",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "repository": "github:supabase/instantdb-to-supabase",
+  "homepage": "https://supabase.com/migrate/instantdb",
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3009",
@@ -14,7 +17,7 @@
     "test:integration": "vitest run tests/oauth-credentials.integration.test.ts tests/restore.integration.test.ts tests/permissions.integration.test.ts tests/workflow.integration.test.ts",
     "test:coverage": "vitest run --coverage --exclude '**/*.integration.test.ts'",
     "import": "node --import tsx scripts/import.ts",
-    "clean": "rimraf .next .turbo coverage tsconfig.tsbuildinfo .workflow-data app/.well-known/workflow test-results playwright-report artifacts",
+    "clean": "rimraf .next coverage tsconfig.tsbuildinfo .workflow-data app/.well-known/workflow test-results playwright-report artifacts",
     "import:workflow": "node --import tsx scripts/workflow-import.ts",
     "test:browser": "playwright test",
     "format": "prettier --write .",
@@ -84,6 +87,6 @@
   },
   "packageManager": "pnpm@11.13.1",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   }
 }

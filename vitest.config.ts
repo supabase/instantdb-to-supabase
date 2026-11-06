@@ -14,7 +14,7 @@ export default defineConfig({
         'src/server/**/*.ts',
         'src/workflow/**/*.ts',
         'workflows/**/*.ts',
-        'app/api/**/*.ts',
+        'app/migrate/instantdb/api/**/*.ts',
       ],
     },
   },

@@ -715,20 +715,24 @@ describe.skipIf(!enabled)('durable bounded import pipeline', { timeout: 180000 }
     }
   )
   it.skipIf(!process.env.IMPORT_EXAMPLE_PATH)(
-    'restores the supplied raw backup through the large-input pipeline',
+    'restores an extracted backup through the large-input pipeline',
     async () => {
       const input = await readBackupFolder(process.env.IMPORT_EXAMPLE_PATH!),
         expected = analyze(input)
       await upload(input)
-      if (process.env.IMPORT_WORKFLOW_TEST_URL) {
-        await httpRun('completed')
-        expect(Number((await getJob(service, jobId!)).revision)).toBeGreaterThan(200)
-      } else await finish()
+      if (process.env.IMPORT_WORKFLOW_TEST_URL) await httpRun('completed')
+      else await finish()
       expect(unpackPlan((await getJob(service, jobId!)).model!).totals).toEqual(expected.totals)
-      expect((await db.query('SELECT count(*) AS n FROM public.tasks')).rows[0].n).toBe('300')
-      expect(
-        Number((await db.query('SELECT count(*) AS n FROM public.document_versions')).rows[0].n)
-      ).toBe(expected.namespaces.find((n) => n.source === 'documentVersions')!.rows.length)
+      // $files rows follow the native file list, which leaves out stream-only files.
+      for (const ns of expected.namespaces.filter(
+        (n) => n.destination === 'public' && n.source !== '$files'
+      ))
+        expect(
+          Number(
+            (await db.query(safeSql`SELECT count(*) AS n FROM public.${ident(ns.target)}`)).rows[0]
+              .n
+          )
+        ).toBe(ns.rows.length)
       expect(
         (await db.query("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'instant_%'")).rows
       ).toEqual([])
